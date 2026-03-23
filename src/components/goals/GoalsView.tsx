@@ -438,4 +438,117 @@ const AddGoalModal: React.FC<AddGoalModalProps> = ({ onClose, onSave }) => {
 
 // GoalDetailModal Component
 interface GoalDetailModalProps {
-  goal
+  goal: SavingsGoal;
+  currency: string;
+  onClose: () => void;
+  onUpdateProgress: (amount: number) => void;
+}
+
+const GoalDetailModal: React.FC<GoalDetailModalProps> = ({ goal, currency, onClose, onUpdateProgress }) => {
+  const [editAmount, setEditAmount] = useState(goal.currentAmount.toString());
+
+  const progressPercent = Math.round(goal.progress * 100);
+  const isCompleted = goal.isCompleted;
+
+  const handleUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newAmount = parseFloat(editAmount);
+    if (!isNaN(newAmount) && newAmount >= 0 && newAmount <= goal.targetAmount) {
+      onUpdateProgress(newAmount);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+      <div className="w-full max-w-md rounded-2xl bg-background border border-border shadow-xl">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{goal.imageEmoji}</span>
+            <h2 className="text-xl font-semibold">{goal.name}</h2>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-secondary rounded-lg">✕</button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Накопичено</span>
+              <span className="font-semibold">{currency}{goal.currentAmount.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Ціль</span>
+              <span className="font-semibold">{currency}{goal.targetAmount.toFixed(0)}</span>
+            </div>
+            <div className="h-3 bg-secondary rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  isCompleted ? 'bg-green-500' : 'bg-primary'
+                }`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className={isCompleted ? 'text-green-500' : 'text-muted-foreground'}>
+                {progressPercent}%
+              </span>
+              {!isCompleted && (
+                <span className="text-muted-foreground">
+                  залишилось {currency}{goal.remaining.toFixed(0)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Deadline */}
+          {goal.deadline && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
+              <span className="text-2xl">📅</span>
+              <div>
+                <p className="text-xs text-muted-foreground">Дедлайн</p>
+                <p className="font-medium">{format(goal.deadline, 'dd MMMM yyyy', { locale: uk })}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {goal.notes && (
+            <div className="p-3 rounded-lg bg-secondary/30">
+              <p className="text-xs text-muted-foreground mb-1">Нотатки</p>
+              <p className="text-sm">{goal.notes}</p>
+            </div>
+          )}
+
+          {/* Update Progress Form */}
+          {!isCompleted && (
+            <form onSubmit={handleUpdate} className="pt-2">
+              <label className="block text-sm font-medium mb-2">Оновити накопичення</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90"
+                >
+                  Оновити
+                </button>
+              </div>
+            </form>
+          )}
+
+          {isCompleted && (
+            <div className="text-center p-4 rounded-lg bg-green-500/10">
+              <span className="text-2xl">🎉</span>
+              <p className="text-green-500 font-medium mt-1">Ціль досягнуто!</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
