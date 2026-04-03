@@ -1,23 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { BiometricAuth } from './BiometricAuth';
-import { PinRecoveryView } from './PinRecoveryView';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
+// Функція хешування PIN (той самий метод, що в iOS)
+const hashPin = async (pin: string, userId: string): Promise<string> => {
+  const input = userId + pin;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isMobile, setIsMobile] = useState(false);
-  const [showRecovery, setShowRecovery] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [attemptsLeft, setAttemptsLeft] = useState(3);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { checkPin } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -45,23 +51,32 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
-      const result = await checkPin(pin);
+      await refreshUser();
       
-      if (result.success) {
+      const storedHash = user?.pinHash;
+      
+      if (!storedHash) {
+        setError('PIN-код не встановлено. Перейдіть в Профіль → Безпека');
+        setIsLoading(false);
+        return;
+      }
+      
+      const userId = user?.id || '';
+      const calculatedHash = await hashPin(pin, userId);
+      
+      console.log('========== PIN VERIFICATION ==========');
+      console.log('User ID:', userId);
+      console.log('Entered PIN:', pin);
+      console.log('Calculated hash:', calculatedHash);
+      console.log('Stored hash:', storedHash);
+      console.log('Match:', calculatedHash === storedHash);
+      console.log('======================================');
+      
+      if (calculatedHash === storedHash) {
         toast.success('PIN-код правильний');
         onSuccess();
-      } else if (result.blocked) {
-        setIsBlocked(true);
-        setError(result.error || 'Акаунт заблоковано. Перевірте email для розблокування.');
-        toast.error('Акаунт заблоковано! Перевірте email.');
       } else {
-        setError(result.error || 'Невірний PIN-код');
-        if (result.attemptsLeft !== undefined) {
-          setAttemptsLeft(result.attemptsLeft);
-          if (result.attemptsLeft <= 0) {
-            setIsBlocked(true);
-          }
-        }
+        setError('Невірний PIN-код');
         setPin('');
         inputRef.current?.focus();
       }
@@ -74,7 +89,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   };
 
   const handleNumberClick = (num: number) => {
-    if (pin.length < 6 && !isBlocked) {
+    if (pin.length < 6) {
       setPin(pin + num.toString());
       setError('');
     }
@@ -94,31 +109,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
 
   const buttonSize = isMobile ? 'w-14 h-14 text-xl' : 'w-16 h-16 text-2xl';
 
-  if (showRecovery) {
-    return <PinRecoveryView onSuccess={onSuccess} onCancel={() => setShowRecovery(false)} />;
-  }
-
-  if (isBlocked) {
-    return (
-      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          <div className="text-6xl mb-4">🔒</div>
-          <h2 className="text-2xl font-bold mb-2">Акаунт заблоковано</h2>
-          <p className="text-muted-foreground mb-4">
-            Ваш акаунт тимчасово заблоковано через 3 невдалі спроби введення PIN-коду.
-            <br />Перевірте електронну пошту для розблокування.
-          </p>
-          <button
-            onClick={() => window.location.href = '/login'}
-            className="w-full py-3 rounded-xl bg-primary text-white font-medium"
-          >
-            Повернутися до входу
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
       <div className="w-full max-w-md p-4">
@@ -130,10 +120,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
             </svg>
           </div>
           <h2 className="text-xl font-bold">Введіть PIN-код</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Для доступу до застосунку
-            {attemptsLeft < 3 && <span className="text-red-500 block">Залишилось спроб: {attemptsLeft}</span>}
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">Для доступу до застосунку</p>
         </div>
 
         <input
@@ -205,14 +192,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           className="mt-6 w-full py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all"
         >
           {isLoading ? 'Перевірка...' : 'Увійти'}
-        </button>
-
-        {/* Кнопка "Забули PIN?" */}
-        <button
-          onClick={() => setShowRecovery(true)}
-          className="mt-2 w-full py-1.5 text-xs text-primary hover:underline transition-colors"
-        >
-          Забули PIN-код?
         </button>
 
         <BiometricAuth onSuccess={onSuccess} />
