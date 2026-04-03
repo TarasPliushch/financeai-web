@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { BiometricAuth } from './BiometricAuth';
+// import { BiometricAuth } from './BiometricAuth'; // Тимчасово коментуємо, поки не налаштуємо бекенд
 
 interface PinUnlockViewProps {
   onSuccess: () => void;
@@ -11,9 +10,7 @@ interface PinUnlockViewProps {
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [useBiometric, setUseBiometric] = useState(false);
-  const { user, updateProfile } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const hashPin = async (pinCode: string): Promise<string> => {
     const encoder = new TextEncoder();
@@ -55,11 +52,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       setPin('');
     }
     setIsLoading(false);
-  };
-
-  const handleBiometricSuccess = () => {
-    toast.success('Біометрична автентифікація успішна');
-    onSuccess();
   };
 
   const renderDots = () => {
@@ -136,10 +128,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         >
           {isLoading ? 'Перевірка...' : 'Увійти'}
         </button>
-
-        <div className="mt-4">
-          <BiometricAuth onSuccess={handleBiometricSuccess} />
-        </div>
 
         <button
           onClick={() => {

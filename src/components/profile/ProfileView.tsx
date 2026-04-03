@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
+import { PinSetupView } from '../auth/PinSetupView';
 
 export const ProfileView: React.FC = () => {
   const { user, updateProfile, logout } = useAuth();
@@ -15,6 +16,7 @@ export const ProfileView: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
+  const [showPinSetup, setShowPinSetup] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -86,7 +88,7 @@ export const ProfileView: React.FC = () => {
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in pb-20">
       {/* Profile Header Card */}
-      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-white/10 p-6">
+      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border p-6">
         <div className="flex flex-col items-center text-center">
           <div className="relative">
             <div className="w-28 h-28 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 p-0.5">
@@ -132,7 +134,7 @@ export const ProfileView: React.FC = () => {
                   </div>
                   <div>
                     <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
-                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="px-4 py-2 rounded-xl border border-white/20 hover:bg-white/10 text-sm disabled:opacity-50">
+                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="px-4 py-2 rounded-xl border border-border hover:bg-secondary text-sm disabled:opacity-50">
                       {isUploading ? 'Завантаження...' : 'Завантажити фото'}
                     </button>
                   </div>
@@ -142,7 +144,7 @@ export const ProfileView: React.FC = () => {
                 <label className="block text-sm font-medium mb-2">Або оберіть емодзі</label>
                 <div className="flex gap-2 flex-wrap">
                   {emojis.map(e => (
-                    <button key={e} onClick={() => { setEditAvatarEmoji(e); setAvatarImageUrl(null); }} className={`w-10 h-10 text-xl rounded-xl transition-all ${editAvatarEmoji === e && !avatarImageUrl ? 'bg-primary/20 ring-2 ring-primary' : 'bg-white/5 hover:bg-white/10'}`}>
+                    <button key={e} onClick={() => { setEditAvatarEmoji(e); setAvatarImageUrl(null); }} className={`w-10 h-10 text-xl rounded-xl transition-all ${editAvatarEmoji === e && !avatarImageUrl ? 'bg-primary/20 ring-2 ring-primary' : 'bg-secondary hover:bg-secondary/80'}`}>
                       {e}
                     </button>
                   ))}
@@ -150,14 +152,14 @@ export const ProfileView: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Ім'я</label>
-                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/5 focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Опис</label>
-                <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/5 focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="Про себе..." />
+                <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="Про себе..." />
               </div>
               <div className="flex gap-3">
-                <button onClick={() => { setIsEditing(false); loadAvatar(); }} className="flex-1 py-2.5 rounded-xl border border-white/20 hover:bg-white/10">Скасувати</button>
+                <button onClick={() => { setIsEditing(false); }} className="flex-1 py-2.5 rounded-xl border border-border hover:bg-secondary">Скасувати</button>
                 <button onClick={handleSave} disabled={isSaving} className="flex-1 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90">{isSaving ? 'Збереження...' : 'Зберегти'}</button>
               </div>
             </div>
@@ -166,21 +168,21 @@ export const ProfileView: React.FC = () => {
       </div>
 
       {/* Settings Section */}
-      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-white/10 overflow-hidden">
-        <div className="px-5 py-4 border-b border-white/10">
+      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
           <h3 className="font-semibold flex items-center gap-2"><span className="text-xl">⚙️</span> Налаштування</h3>
         </div>
         <div className="p-4 space-y-3">
           <div className="flex justify-between items-center p-3 rounded-xl bg-white/5">
             <span className="flex items-center gap-2"><span className="text-lg">🌐</span> Мова</span>
-            <select value={user?.language || 'uk'} onChange={async (e) => await updateProfile({ language: e.target.value })} className="bg-transparent border border-white/20 rounded-lg px-3 py-1.5 text-sm">
+            <select value={user?.language || 'uk'} onChange={async (e) => await updateProfile({ language: e.target.value })} className="bg-transparent border border-border rounded-lg px-3 py-1.5 text-sm">
               <option value="uk">Українська</option>
               <option value="en">English</option>
             </select>
           </div>
           <div className="flex justify-between items-center p-3 rounded-xl bg-white/5">
             <span className="flex items-center gap-2"><span className="text-lg">🎨</span> Тема</span>
-            <select value={theme} onChange={(e) => setTheme(e.target.value as any)} className="bg-transparent border border-white/20 rounded-lg px-3 py-1.5 text-sm">
+            <select value={theme} onChange={(e) => setTheme(e.target.value as any)} className="bg-transparent border border-border rounded-lg px-3 py-1.5 text-sm">
               <option value="system">🌓 Системна</option>
               <option value="light">☀️ Світла</option>
               <option value="dark">🌙 Темна</option>
@@ -188,7 +190,7 @@ export const ProfileView: React.FC = () => {
           </div>
           <div className="flex justify-between items-center p-3 rounded-xl bg-white/5">
             <span className="flex items-center gap-2"><span className="text-lg">💱</span> Валюта</span>
-            <select value={user?.currency || '₴'} onChange={async (e) => await updateProfile({ currency: e.target.value })} className="bg-transparent border border-white/20 rounded-lg px-3 py-1.5 text-sm">
+            <select value={user?.currency || '₴'} onChange={async (e) => await updateProfile({ currency: e.target.value })} className="bg-transparent border border-border rounded-lg px-3 py-1.5 text-sm">
               <option value="₴">₴ Гривня</option>
               <option value="$">$ Долар</option>
               <option value="€">€ Євро</option>
@@ -198,20 +200,38 @@ export const ProfileView: React.FC = () => {
             <span className="flex items-center gap-2"><span className="text-lg">🔔</span> Сповіщення</span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" checked={user?.notificationsEnabled !== false} onChange={async (e) => await updateProfile({ notificationsEnabled: e.target.checked })} className="sr-only peer" />
-              <div className="w-11 h-6 bg-white/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div className="w-11 h-6 bg-secondary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
         </div>
       </div>
 
+      {/* Security Section */}
+      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h3 className="font-semibold flex items-center gap-2"><span className="text-xl">🔒</span> Безпека</h3>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="flex justify-between items-center p-3 rounded-xl bg-white/5">
+            <span className="flex items-center gap-2"><span className="text-lg">🔐</span> PIN-код</span>
+            <button
+              onClick={() => setShowPinSetup(true)}
+              className="text-sm text-primary hover:underline"
+            >
+              {user?.pinHash ? 'Змінити PIN' : 'Встановити PIN'}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* FAQ Section */}
-      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-white/10 overflow-hidden">
-        <div className="px-5 py-4 border-b border-white/10">
+      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
           <h3 className="font-semibold flex items-center gap-2"><span className="text-xl">❓</span> Часті запитання</h3>
         </div>
         <div className="p-2">
           {faqItems.map((item, idx) => (
-            <div key={idx} className="border-b border-white/10 last:border-0">
+            <div key={idx} className="border-b border-border last:border-0">
               <button
                 onClick={() => setExpandedFaq(expandedFaq === item.q ? null : item.q)}
                 className="w-full flex justify-between items-center p-4 text-left hover:bg-white/5 transition-colors"
@@ -230,8 +250,8 @@ export const ProfileView: React.FC = () => {
       </div>
 
       {/* About Section */}
-      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-white/10 overflow-hidden">
-        <div className="px-5 py-4 border-b border-white/10">
+      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
           <h3 className="font-semibold flex items-center gap-2"><span className="text-xl">ℹ️</span> Про програму</h3>
         </div>
         <div className="p-5 flex items-center gap-4">
@@ -245,8 +265,8 @@ export const ProfileView: React.FC = () => {
       </div>
 
       {/* Support Section */}
-      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-white/10 overflow-hidden">
-        <div className="px-5 py-4 border-b border-white/10">
+      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
           <h3 className="font-semibold flex items-center gap-2"><span className="text-xl">📧</span> Підтримка</h3>
         </div>
         <a href="mailto:tarasplus502@gmail.com" className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors">
@@ -263,44 +283,19 @@ export const ProfileView: React.FC = () => {
       <button onClick={() => { if (confirm('Ви впевнені, що хочете вийти?')) logout(); }} className="w-full py-3.5 rounded-xl bg-red-500/10 text-red-400 font-medium hover:bg-red-500/20 transition-colors">
         Вийти з акаунту
       </button>
-    </div>
-  );
-};
 
-// Функція для завантаження аватара (додати в компонент)
-function loadAvatar() {
-  // Ця функція має бути визначена в компоненті, але для простоти залишаємо
-}
-
-      {/* Security Section */}
-      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <h3 className="font-semibold flex items-center gap-2">
-            <span className="text-xl">🔒</span> Безпека
-          </h3>
-        </div>
-        <div className="p-4 space-y-3">
-          <div className="flex justify-between items-center p-3 rounded-xl bg-white/5">
-            <span className="flex items-center gap-2">
-              <span className="text-lg">🔐</span> PIN-код
-            </span>
-            <button
-              onClick={() => setShowPinSetup(true)}
-              className="text-sm text-primary hover:underline"
-            >
-              {user?.pinHash ? 'Змінити PIN' : 'Встановити PIN'}
-            </button>
-          </div>
-        </div>
-      </div>
-const [showPinSetup, setShowPinSetup] = useState(false);
+      {/* PIN Setup Modal */}
       {showPinSetup && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl bg-background border border-border shadow-2xl">
             <PinSetupView
               mode={user?.pinHash ? 'change' : 'setup'}
               onSuccess={() => setShowPinSetup(false)}
+              onCancel={() => setShowPinSetup(false)}
             />
           </div>
         </div>
       )}
+    </div>
+  );
+};
