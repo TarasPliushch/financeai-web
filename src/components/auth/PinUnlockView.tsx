@@ -6,7 +6,8 @@ interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
-// Функція для хешування PIN - точно як в iOS
+// ТОЧНО ТАКИЙ САМИЙ МЕТОД ХЕШУВАННЯ, ЯК В iOS
+// iOS: SHA256(userId + pin) -> hex
 const hashPin = async (pin: string, userId: string): Promise<string> => {
   // iOS використовує userId як є (з префіксом user_)
   const input = userId + pin;
@@ -15,7 +16,9 @@ const hashPin = async (pin: string, userId: string): Promise<string> => {
   const data = encoder.encode(input);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const hexHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  console.log('🔐 iOS-style hash output:', hexHash);
+  return hexHash;
 };
 
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
@@ -46,29 +49,32 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
+      // Отримуємо актуальні дані користувача
       await refreshUser();
       
       const storedHash = user?.pinHash;
       
       if (!storedHash) {
-        toast.error('PIN-код не встановлено. Перейдіть в Профіль → Безпека, щоб встановити PIN.');
+        toast.error('PIN-код не встановлено');
         setIsLoading(false);
         return;
       }
       
       const userId = user?.id || '';
       
+      // Хешуємо PIN тим самим методом, що в iOS
+      const calculatedHash = await hashPin(pin, userId);
+      
       console.log('========== PIN VERIFICATION ==========');
       console.log('User ID:', userId);
       console.log('Entered PIN:', pin);
-      console.log('Stored hash:', storedHash);
-      
-      const calculatedHash = await hashPin(pin, userId);
+      console.log('Input string (userId+pin):', userId + pin);
       console.log('Calculated hash:', calculatedHash);
-      console.log('Match:', storedHash === calculatedHash);
+      console.log('Stored hash from server:', storedHash);
+      console.log('Match:', calculatedHash === storedHash);
       console.log('======================================');
       
-      if (storedHash === calculatedHash) {
+      if (calculatedHash === storedHash) {
         toast.success('PIN-код правильний');
         onSuccess();
       } else {
@@ -112,11 +118,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           <p className="text-muted-foreground mt-2">
             Для доступу до застосунку
           </p>
-          {user?.pinHash && (
-            <p className="text-xs text-muted-foreground mt-4">
-              PIN встановлено. Якщо ви забули PIN - змініть його в профілі.
-            </p>
-          )}
         </div>
 
         {renderDots()}
