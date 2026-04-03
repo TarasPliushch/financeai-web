@@ -142,26 +142,33 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
               <button
                 key={num}
                 onClick={() => handleNumberClick(num)}
-                className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 font-medium transition-colors`}
+                className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 font-medium transition-colors flex items-center justify-center`}
               >
                 {num}
               </button>
             ))}
+            {/* Кнопка очищення - іконка кошика */}
             <button
               onClick={handleClear}
-              className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors`}
+              className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 transition-colors flex items-center justify-center`}
+              title="Очистити все"
             >
-              Очист
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 6h18M8 6V4h8v2M10 11v6M14 11v6M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14"/>
+                <path d="M9 3h6"/>
+              </svg>
             </button>
             <button
               onClick={() => handleNumberClick(0)}
-              className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 font-medium transition-colors`}
+              className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 font-medium transition-colors flex items-center justify-center`}
             >
               0
             </button>
+            {/* Кнопка видалення - іконка стрілки назад */}
             <button
               onClick={handleDelete}
               className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 transition-colors flex items-center justify-center`}
+              title="Видалити останню цифру"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
