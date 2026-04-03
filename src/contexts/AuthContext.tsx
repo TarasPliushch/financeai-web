@@ -76,6 +76,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(response.user);
         api.setUserId(response.user.id);
         if (response.user.isEmailVerified === false) setRequiresEmailVerification(true);
+        // Зберігаємо email для автозаповнення
+        localStorage.setItem('lastEmail', email);
         toast.success('Вхід виконано!');
         return true;
       }
@@ -95,6 +97,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(response.user);
         api.setUserId(response.user.id);
         if (response.requiresVerification) setRequiresEmailVerification(true);
+        localStorage.setItem('lastEmail', email);
         toast.success('Реєстрація успішна!');
         return true;
       }
@@ -114,6 +117,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(response.user);
         api.setUserId(response.user.id);
         setPendingTwoFactorEmail('');
+        localStorage.setItem('lastEmail', email);
         toast.success('2FA підтверджено!');
         return true;
       }
@@ -130,9 +134,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     api.setUserId(null);
     setUser(null);
     setRequiresEmailVerification(false);
-    // Очищаємо всі дані сесії
     sessionStorage.removeItem('pinVerified');
     localStorage.removeItem('pinUnlocked');
+    // Не видаляємо lastEmail, щоб при наступному вході email був
     toast.success('Ви вийшли');
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -6,7 +6,6 @@ interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
-// ТОЙ САМИЙ МЕТОД ХЕШУВАННЯ, ЩО В iOS
 const hashPin = async (pin: string, userId: string): Promise<string> => {
   const input = userId + pin;
   const encoder = new TextEncoder();
@@ -19,29 +18,30 @@ const hashPin = async (pin: string, userId: string): Promise<string> => {
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
   const { user, refreshUser } = useAuth();
 
-  const handleNumberClick = (num: number) => {
-    if (pin.length < 6) {
-      setPin(pin + num.toString());
+  // Автофокус на поле вводу
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Обробка фізичної клавіатури
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && pin.length === 6) {
+      verifyPin();
     }
-  };
-
-  const handleDelete = () => {
-    setPin(pin.slice(0, -1));
-  };
-
-  const handleClear = () => {
-    setPin('');
   };
 
   const verifyPin = async () => {
     if (pin.length !== 6) {
-      toast.error('Введіть 6-значний PIN-код');
+      setError('Введіть 6-значний PIN-код');
       return;
     }
 
     setIsLoading(true);
+    setError('');
     
     try {
       await refreshUser();
@@ -49,7 +49,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       const storedHash = user?.pinHash;
       
       if (!storedHash) {
-        toast.error('PIN-код не встановлено');
+        setError('PIN-код не встановлено');
         setIsLoading(false);
         return;
       }
@@ -57,42 +57,20 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       const userId = user?.id || '';
       const calculatedHash = await hashPin(pin, userId);
       
-      console.log('========== PIN VERIFICATION ==========');
-      console.log('User ID:', userId);
-      console.log('Entered PIN:', pin);
-      console.log('Calculated hash:', calculatedHash);
-      console.log('Stored hash:', storedHash);
-      console.log('Match:', calculatedHash === storedHash);
-      console.log('======================================');
-      
       if (calculatedHash === storedHash) {
         toast.success('PIN-код правильний');
         onSuccess();
       } else {
-        toast.error('Невірний PIN-код');
+        setError('Невірний PIN-код');
         setPin('');
+        inputRef.current?.focus();
       }
     } catch (error) {
       console.error('PIN verification error:', error);
-      toast.error('Помилка перевірки PIN');
+      setError('Помилка перевірки PIN');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const renderDots = () => {
-    return (
-      <div className="flex gap-3 justify-center mb-8">
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className={`w-4 h-4 rounded-full transition-all ${
-              i < pin.length ? 'bg-primary scale-110' : 'bg-muted'
-            }`}
-          />
-        ))}
-      </div>
-    );
   };
 
   return (
@@ -106,24 +84,88 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold">Введіть PIN-код</h2>
-          <p className="text-muted-foreground mt-2">Для доступу до застосунку</p>
+          <p className="text-muted-foreground mt-2">
+            Для доступу до застосунку
+          </p>
         </div>
 
-        {renderDots()}
+        {/* Поле для вводу PIN з клавіатури */}
+        <input
+          ref={inputRef}
+          type="password"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={6}
+          value={pin}
+          onChange={(e) => {
+            const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+            setPin(val);
+            setError('');
+            if (val.length === 6) {
+              setTimeout(() => verifyPin(), 100);
+            }
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder="••••••"
+          className="w-full text-center text-2xl tracking-widest py-4 rounded-xl border border-border bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 mb-4"
+          autoFocus
+        />
 
+        {error && (
+          <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+        )}
+
+        {/* Цифрова клавіатура для мобільних пристроїв */}
         <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button key={num} onClick={() => handleNumberClick(num)} className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors">
+            <button
+              key={num}
+              onClick={() => {
+                if (pin.length < 6) {
+                  setPin(pin + num.toString());
+                  setError('');
+                  if (pin.length + 1 === 6) {
+                    setTimeout(() => verifyPin(), 100);
+                  }
+                }
+              }}
+              className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
+            >
               {num}
             </button>
           ))}
-          <button onClick={handleClear} className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors">
+          <button
+            onClick={() => {
+              setPin('');
+              setError('');
+              inputRef.current?.focus();
+            }}
+            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors"
+          >
             Очистити
           </button>
-          <button onClick={() => handleNumberClick(0)} className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors">
+          <button
+            onClick={() => {
+              if (pin.length < 6) {
+                setPin(pin + '0');
+                setError('');
+                if (pin.length + 1 === 6) {
+                  setTimeout(() => verifyPin(), 100);
+                }
+              }
+            }}
+            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
+          >
             0
           </button>
-          <button onClick={handleDelete} className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 transition-colors">
+          <button
+            onClick={() => {
+              setPin(pin.slice(0, -1));
+              setError('');
+              inputRef.current?.focus();
+            }}
+            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto">
               <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
               <line x1="18" y1="9" x2="12" y2="15"/>
@@ -132,11 +174,22 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           </button>
         </div>
 
-        <button onClick={verifyPin} disabled={pin.length !== 6 || isLoading} className="mt-8 w-full py-3 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all">
+        <button
+          onClick={verifyPin}
+          disabled={pin.length !== 6 || isLoading}
+          className="mt-8 w-full py-3 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all"
+        >
           {isLoading ? 'Перевірка...' : 'Увійти'}
         </button>
 
-        <button onClick={() => { localStorage.removeItem('authToken'); localStorage.removeItem('userId'); window.location.href = '/login'; }} className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          onClick={() => {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+            window.location.href = '/login';
+          }}
+          className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
           Вийти з акаунту
         </button>
       </div>
