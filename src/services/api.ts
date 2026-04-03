@@ -1,7 +1,6 @@
-// src/services/api.ts
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://my-finance-app-2026-production.up.railway.app/api';
+const API_URL = 'https://my-finance-app-2026-production.up.railway.app/api';
 
 class ApiService {
   private api: AxiosInstance;
@@ -11,34 +10,22 @@ class ApiService {
     this.api = axios.create({
       baseURL: API_URL,
       timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
 
-    this.api.interceptors.request.use(
-      (config: InternalAxiosRequestConfig) => {
-        const token = this.getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        const userId = this.getUserId();
-        if (userId) {
-          config.headers['user-id'] = userId;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
+    this.api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+      const token = this.getToken();
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      const userId = this.getUserId();
+      if (userId) config.headers['user-id'] = userId;
+      return config;
+    });
   }
 
   setToken(token: string | null) {
     this.token = token;
-    if (token) {
-      localStorage.setItem('authToken', token);
-    } else {
-      localStorage.removeItem('authToken');
-    }
+    if (token) localStorage.setItem('authToken', token);
+    else localStorage.removeItem('authToken');
   }
 
   getToken(): string | null {
@@ -46,11 +33,8 @@ class ApiService {
   }
 
   setUserId(userId: string | null) {
-    if (userId) {
-      localStorage.setItem('userId', userId);
-    } else {
-      localStorage.removeItem('userId');
-    }
+    if (userId) localStorage.setItem('userId', userId);
+    else localStorage.removeItem('userId');
   }
 
   getUserId(): string | null {
@@ -58,169 +42,167 @@ class ApiService {
   }
 
   // Auth
-  async register(email: string, password: string, name: string): Promise<any> {
-    const response = await this.api.post('/auth/register', { email, password, name });
-    return response.data;
+  async register(email: string, password: string, name: string) {
+    const res = await this.api.post('/auth/register', { email, password, name });
+    return res.data;
   }
 
-  async login(email: string, password: string): Promise<any> {
-    const response = await this.api.post('/auth/login', { email, password });
-    return response.data;
+  async login(email: string, password: string) {
+    const res = await this.api.post('/auth/login', { email, password });
+    return res.data;
   }
 
-  async getCurrentUser(): Promise<any> {
-    const response = await this.api.get('/auth/me');
-    return response.data;
+  async getCurrentUser() {
+    const res = await this.api.get('/auth/me');
+    return res.data;
   }
 
-  async updateProfile(data: any): Promise<any> {
-    const response = await this.api.put('/auth/profile', data);
-    return response.data;
+  async updateProfile(data: any) {
+    const res = await this.api.put('/auth/profile', data);
+    return res.data;
   }
 
-  async verifyEmail(code: string): Promise<any> {
-    const response = await this.api.post('/auth/verify-email', { code });
-    return response.data;
+  async verifyEmail(code: string) {
+    const res = await this.api.post('/auth/verify-email', { code });
+    return res.data;
   }
 
-  async resendVerification(): Promise<any> {
-    const response = await this.api.post('/auth/resend-verification', {});
-    return response.data;
+  async resendVerification() {
+    const res = await this.api.post('/auth/resend-verification', {});
+    return res.data;
   }
 
-  async verifyTwoFactor(email: string, code: string): Promise<any> {
-    const response = await this.api.post('/auth/verify-2fa', { email, code });
-    return response.data;
+  async verifyTwoFactor(email: string, code: string) {
+    const res = await this.api.post('/auth/verify-2fa', { email, code });
+    return res.data;
   }
 
-  async requestPasswordReset(email: string): Promise<any> {
-    const response = await this.api.post('/auth/forgot-password', { email });
-    return response.data;
+  async requestPasswordReset(email: string) {
+    const res = await this.api.post('/auth/forgot-password', { email });
+    return res.data;
   }
 
-  async resetPassword(email: string, code: string, newPassword: string): Promise<any> {
-    const response = await this.api.post('/auth/reset-password', { email, code, newPassword });
-    return response.data;
-  }
-
-  async updatePinHash(pinHash: string): Promise<any> {
-    const response = await this.api.put('/auth/pin', { pinHash });
-    return response.data;
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const res = await this.api.post('/auth/reset-password', { email, code, newPassword });
+    return res.data;
   }
 
   // Expenses
-  async getExpenses(): Promise<any> {
-    const response = await this.api.get('/expenses');
-    return response.data;
+  async getExpenses() {
+    const res = await this.api.get('/expenses');
+    return res.data;
   }
 
-  async createExpense(data: any): Promise<any> {
-    const response = await this.api.post('/expenses', data);
-    return response.data;
+  async createExpense(data: any) {
+    const res = await this.api.post('/expenses', data);
+    return res.data;
   }
 
-  async updateExpense(id: string, data: any): Promise<any> {
-    const response = await this.api.put(`/expenses/${id}`, data);
-    return response.data;
+  async updateExpense(id: string, data: any) {
+    const res = await this.api.put(`/expenses/${id}`, data);
+    return res.data;
   }
 
-  async deleteExpense(id: string): Promise<any> {
-    const response = await this.api.delete(`/expenses/${id}`);
-    return response.data;
+  async deleteExpense(id: string) {
+    const res = await this.api.delete(`/expenses/${id}`);
+    return res.data;
   }
 
   // Goals
-  async getGoals(): Promise<any> {
-    const response = await this.api.get('/goals');
-    return response.data;
+  async getGoals() {
+    const res = await this.api.get('/goals');
+    return res.data;
   }
 
-  async createGoal(data: any): Promise<any> {
-    const response = await this.api.post('/goals', data);
-    return response.data;
+  async createGoal(data: any) {
+    const res = await this.api.post('/goals', data);
+    return res.data;
   }
 
-  async updateGoal(id: string, data: any): Promise<any> {
-    const response = await this.api.put(`/goals/${id}`, data);
-    return response.data;
+  async updateGoal(id: string, data: any) {
+    const res = await this.api.put(`/goals/${id}`, data);
+    return res.data;
   }
 
-  async deleteGoal(id: string): Promise<any> {
-    const response = await this.api.delete(`/goals/${id}`);
-    return response.data;
+  async deleteGoal(id: string) {
+    const res = await this.api.delete(`/goals/${id}`);
+    return res.data;
   }
 
-  // Shopping Lists
-  async getShoppingLists(): Promise<any> {
-    const response = await this.api.get('/shopping-lists');
-    return response.data;
+  // ===========================================
+  // SHOPPING LISTS - відповідно до вашого сервера
+  // Ваш сервер використовує /shopping/lists (як у коді server.js)
+  // ===========================================
+  async getShoppingLists() {
+    const res = await this.api.get('/shopping/lists');
+    return res.data;
   }
 
-  async createShoppingList(data: any): Promise<any> {
-    const response = await this.api.post('/shopping-lists', data);
-    return response.data;
+  async createShoppingList(data: any) {
+    const res = await this.api.post('/shopping/lists', data);
+    return res.data;
   }
 
-  async updateShoppingList(id: string, data: any): Promise<any> {
-    const response = await this.api.put(`/shopping-lists/${id}`, data);
-    return response.data;
+  async updateShoppingList(id: string, data: any) {
+    const res = await this.api.put(`/shopping/lists/${id}`, data);
+    return res.data;
   }
 
-  async deleteShoppingList(id: string): Promise<any> {
-    const response = await this.api.delete(`/shopping-lists/${id}`);
-    return response.data;
+  async deleteShoppingList(id: string) {
+    const res = await this.api.delete(`/shopping/lists/${id}`);
+    return res.data;
   }
 
   // Chat
-  async getChatSessions(): Promise<any> {
-    const response = await this.api.get('/chat/sessions');
-    return response.data;
+  async getChatSessions() {
+    const res = await this.api.get('/chat/sessions');
+    return res.data;
   }
 
-  async createChatSession(name: string): Promise<any> {
-    const response = await this.api.post('/chat/sessions', { name });
-    return response.data;
+  async createChatSession(name: string) {
+    const res = await this.api.post('/chat/sessions', { name });
+    return res.data;
   }
 
-  async updateChatSession(id: string, name: string): Promise<any> {
-    const response = await this.api.put(`/chat/sessions/${id}`, { name });
-    return response.data;
+  async updateChatSession(id: string, name: string) {
+    const res = await this.api.put(`/chat/sessions/${id}`, { name });
+    return res.data;
   }
 
-  async deleteChatSession(id: string): Promise<any> {
-    const response = await this.api.delete(`/chat/sessions/${id}`);
-    return response.data;
+  async deleteChatSession(id: string) {
+    const res = await this.api.delete(`/chat/sessions/${id}`);
+    return res.data;
   }
 
-  async getChatMessages(sessionId: string): Promise<any> {
-    const response = await this.api.get(`/chat/sessions/${sessionId}/messages`);
-    return response.data;
+  async getChatMessages(sessionId: string) {
+    const res = await this.api.get(`/chat/sessions/${sessionId}/messages`);
+    return res.data;
   }
 
-  async createChatMessage(sessionId: string, content: string, isUser: boolean): Promise<any> {
-    const response = await this.api.post(`/chat/sessions/${sessionId}/messages`, { content, isUser });
-    return response.data;
+  async createChatMessage(sessionId: string, content: string, isUser: boolean) {
+    const res = await this.api.post(`/chat/sessions/${sessionId}/messages`, { content, isUser });
+    return res.data;
   }
 
   // Notifications
-  async getNotifications(): Promise<any> {
-    const response = await this.api.get('/notifications');
-    return response.data;
+  async getNotifications() {
+    const res = await this.api.get('/notifications');
+    return res.data;
   }
 
-  async createNotification(data: any): Promise<any> {
-    const response = await this.api.post('/notifications', data);
-    return response.data;
+  async createNotification(data: any) {
+    const res = await this.api.post('/notifications', data);
+    return res.data;
   }
 
-  async markAllNotificationsRead(): Promise<any> {
-    const response = await this.api.put('/notifications/read-all');
-    return response.data;
+  async markAllNotificationsRead() {
+    const res = await this.api.put('/notifications/read-all');
+    return res.data;
   }
 
-  async deleteNotification(id: string): Promise<any> {
-    const response = await this.api.delete(`/notifications/${id}`);
-    return response.data;
+  async deleteNotification(id: string) {
+    const res = await this.api.delete(`/notifications/${id}`);
+    return res.data;
   }
 }
 

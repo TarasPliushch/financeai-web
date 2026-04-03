@@ -15,44 +15,24 @@ import { ShoppingListView } from './components/shopping/ShoppingListView';
 import { ChatView } from './components/chat/ChatView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { ProfileView } from './components/profile/ProfileView';
+import { DebugView } from './components/DebugView';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, requiresEmailVerification } = useAuth();
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (requiresEmailVerification) {
-    return <Navigate to="/verify-email" replace />;
-  }
-  
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (requiresEmailVerification) return <Navigate to="/verify-email" replace />;
   return <>{children}</>;
 };
 
 const AppContent: React.FC = () => {
   const { isDark } = useTheme();
-  
   React.useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (isDark) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [isDark]);
-  
   return (
     <>
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: isDark ? '#1f2937' : '#fff',
-            color: isDark ? '#fff' : '#000',
-          },
-        }}
-      />
+      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { background: isDark ? '#1f2937' : '#fff', color: isDark ? '#fff' : '#000' } }} />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginView />} />
@@ -60,12 +40,7 @@ const AppContent: React.FC = () => {
           <Route path="/forgot-password" element={<ForgotPasswordView />} />
           <Route path="/verify-email" element={<EmailVerificationView />} />
           <Route path="/2fa" element={<TwoFactorView />} />
-          
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }>
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/finances" replace />} />
             <Route path="finances" element={<ExpensesView />} />
             <Route path="goals" element={<GoalsView />} />
@@ -73,6 +48,7 @@ const AppContent: React.FC = () => {
             <Route path="chat" element={<ChatView />} />
             <Route path="notifications" element={<NotificationsView />} />
             <Route path="profile" element={<ProfileView />} />
+            <Route path="debug" element={<DebugView />} />
           </Route>
         </Routes>
       </BrowserRouter>
