@@ -32,6 +32,9 @@ export const ProfileView: React.FC = () => {
       }
     }
     checkBiometricAvailability();
+    // Завантажуємо налаштування біометрії
+    const savedBiometric = localStorage.getItem('biometricEnabled');
+    setBiometricEnabled(savedBiometric === 'true');
   }, [user]);
 
   const checkBiometricAvailability = async () => {
@@ -40,9 +43,6 @@ export const ProfileView: React.FC = () => {
           typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
         const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
         setBiometricAvailable(available);
-        // Перевіряємо налаштування в localStorage
-        const saved = localStorage.getItem('biometricEnabled');
-        setBiometricEnabled(saved === 'true');
       }
     } catch (error) {
       console.log('Biometric not supported');
@@ -52,8 +52,9 @@ export const ProfileView: React.FC = () => {
 
   const handleBiometricToggle = async () => {
     if (!biometricEnabled) {
-      // Спроба налаштувати біометрію
+      // Увімкнення біометрії
       try {
+        // Генеруємо виклик для WebAuthn
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
         
@@ -78,8 +79,10 @@ export const ProfileView: React.FC = () => {
         });
         
         if (credential) {
-          setBiometricEnabled(true);
+          // Зберігаємо credential ID
+          localStorage.setItem('biometricCredentialId', (credential as any).id);
           localStorage.setItem('biometricEnabled', 'true');
+          setBiometricEnabled(true);
           toast.success('Біометричну автентифікацію налаштовано!');
         }
       } catch (error) {
@@ -87,9 +90,52 @@ export const ProfileView: React.FC = () => {
         toast.error('Не вдалося налаштувати біометричну автентифікацію');
       }
     } else {
-      setBiometricEnabled(false);
+      // Вимкнення біометрії
+      localStorage.removeItem('biometricCredentialId');
       localStorage.setItem('biometricEnabled', 'false');
+      setBiometricEnabled(false);
       toast.success('Біометричну автентифікацію вимкнено');
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Будь ласка, оберіть зображення');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Файл не більше 5MB');
+      return;
+    }
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result as string;
+      setAvatarImageUrl(base64String);
+      setEditAvatarEmoji('📷');
+      const success = await updateProfile({ avatarEmoji: base64String });
+      if (success) toast.success('Аватар оновлено');
+      else toast.error('Помилка збереження аватара');
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    let avatarData = editAvatarEmoji;
+    if (avatarImageUrl) avatarData = avatarImageUrl;
+    const success = await updateProfile({
+      name: editName,
+      description: editDescription,
+      avatarEmoji: avatarData,
+    });
+    setIsSaving(false);
+    if (success) {
+      setIsEditing(false);
+      toast.success('Профіль оновлено');
     }
   };
 
@@ -338,7 +384,3 @@ export const ProfileView: React.FC = () => {
     </div>
   );
 };
-
-// Функції для роботи з аватаром
-function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) { /* реалізація */ }
-function handleSave() { /* реалізація */ }
