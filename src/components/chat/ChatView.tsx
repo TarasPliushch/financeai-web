@@ -85,6 +85,58 @@ export const ChatView: React.FC = () => {
     } catch (error) { toast.error('Помилка видалення'); }
   };
 
+  // Функція для виконання дій з командами
+  const executeCommand = async (text: string): Promise<string | null> => {
+    // Додати витрату
+    let match = text.match(/додай\s+витрату\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
+    if (match) {
+      try {
+        await api.createExpense({
+          title: match[1].trim(),
+          amount: parseFloat(match[2]),
+          category: 'Інше',
+          date: new Date().toISOString(),
+          isIncome: false,
+          currency: '₴'
+        });
+        return `✅ Витрату "${match[1]}" на ${match[2]}₴ додано!`;
+      } catch (e) { return `❌ Помилка додавання витрати`; }
+    }
+
+    // Додати дохід
+    match = text.match(/додай\s+дохід\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
+    if (match) {
+      try {
+        await api.createExpense({
+          title: match[1].trim(),
+          amount: parseFloat(match[2]),
+          category: 'Зарплата',
+          date: new Date().toISOString(),
+          isIncome: true,
+          currency: '₴'
+        });
+        return `✅ Дохід "${match[1]}" на ${match[2]}₴ додано!`;
+      } catch (e) { return `❌ Помилка додавання доходу`; }
+    }
+
+    // Додати ціль
+    match = text.match(/додай\s+ціль\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
+    if (match) {
+      try {
+        await api.createGoal({
+          name: match[1].trim(),
+          targetAmount: parseFloat(match[2]),
+          currentAmount: 0,
+          imageEmoji: '🎯',
+          currency: '₴'
+        });
+        return `✅ Ціль "${match[1]}" на ${match[2]}₴ додано!`;
+      } catch (e) { return `❌ Помилка додавання цілі`; }
+    }
+
+    return null;
+  };
+
   const sendMessage = async () => {
     const text = inputText.trim();
     if (!text || isLoading || isStreaming) return;
@@ -96,9 +148,16 @@ export const ChatView: React.FC = () => {
 
     if (currentSessionId) await api.createChatMessage(currentSessionId, text, true);
 
+    // Спочатку виконуємо команду
+    const commandResult = await executeCommand(text);
+    
     try {
       setIsStreaming(true);
       setStreamingText('');
+      
+      const systemPrompt = commandResult 
+        ? `Ти Lis — фінансовий асистент. Користувач щойно виконав дію: ${commandResult}. Підтверди це коротко і запропонуй подальшу допомогу.`
+        : 'Ти Lis — фінансовий асистент. Відповідай українською коротко, використовуй емодзі. Допомагай з фінансами.';
       
       const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
@@ -106,12 +165,12 @@ export const ChatView: React.FC = () => {
         body: JSON.stringify({
           model: 'deepseek-chat',
           messages: [
-            { role: 'system', content: 'Ти Lis — фінансовий асистент. Відповідай українською, використовуй емодзі.' },
+            { role: 'system', content: systemPrompt },
             ...messages.slice(-8).map(m => ({ role: m.isUser ? 'user' : 'assistant', content: m.content })),
             { role: 'user', content: text }
           ],
           temperature: 0.7,
-          max_tokens: 500,
+          max_tokens: 300,
           stream: true,
         }),
       });
@@ -136,13 +195,18 @@ export const ChatView: React.FC = () => {
         }
       }
 
-      const aiMessage: ChatMessage = { id: Date.now().toString(), content: fullResponse || 'Готово!', isUser: false, timestamp: new Date() };
+      let finalResponse = fullResponse;
+      if (commandResult && !fullResponse.includes(commandResult)) {
+        finalResponse = commandResult + '\n\n' + fullResponse;
+      }
+      
+      const aiMessage: ChatMessage = { id: Date.now().toString(), content: finalResponse || 'Готово!', isUser: false, timestamp: new Date() };
       setMessages(prev => [...prev, aiMessage]);
       if (currentSessionId) await api.createChatMessage(currentSessionId, aiMessage.content, false);
       
     } catch (error) {
       console.error('❌ Помилка AI:', error);
-      const errorMsg = 'Вибач, сталася помилка. Спробуй ще раз.';
+      const errorMsg = commandResult || 'Вибач, сталася помилка. Спробуй ще раз.';
       setStreamingText(errorMsg);
       setMessages(prev => [...prev, { id: Date.now().toString(), content: errorMsg, isUser: false, timestamp: new Date() }]);
     } finally {
@@ -183,12 +247,12 @@ export const ChatView: React.FC = () => {
         </div>
       </div>
 
-      {/* Chat area */}
+      {/* Chat area - full height no extra padding */}
       <div className="flex-1 flex flex-col h-full">
-        <div className="p-4 border-b border-white/10 flex items-center gap-3">
+        <div className="p-4 border-b border-white/10 flex items-center gap-3 flex-shrink-0">
           <button onClick={() => setShowSessions(true)} className="md:hidden p-2 rounded-lg hover:bg-white/10">☰</button>
           <h3 className="font-semibold flex-1">{currentSession?.name || 'Чат з AI'}</h3>
-          <p className="text-xs text-muted-foreground">Lis — асистент</p>
+          <p className="text-xs text-muted-foreground">Lis</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -196,7 +260,7 @@ export const ChatView: React.FC = () => {
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🤖</div>
               <p className="text-muted-foreground">Привіт! Я Lis, твій фінансовий асистент</p>
-              <p className="text-sm text-muted-foreground mt-2">Можу додавати витрати, доходи, цілі та списки покупок за командою</p>
+              <p className="text-sm text-muted-foreground mt-2">Напиши: "додай витрату Кава на 50 грн"</p>
             </div>
           )}
           {messages.map(m => (
@@ -228,7 +292,7 @@ export const ChatView: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 flex-shrink-0">
           <div className="flex gap-2">
             <textarea
               value={inputText}

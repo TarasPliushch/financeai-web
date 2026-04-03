@@ -4,11 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const navigation = [
-  { name: 'Фінанси', path: '/finances', icon: '💰' },
-  { name: 'Цілі', path: '/goals', icon: '🎯' },
-  { name: 'Покупки', path: '/shopping', icon: '🛒' },
-  { name: 'Чат', path: '/chat', icon: '💬' },
-  { name: 'Сповіщення', path: '/notifications', icon: '🔔' },
+  { name: 'Фінанси', path: '/finances' },
+  { name: 'Цілі', path: '/goals' },
+  { name: 'Покупки', path: '/shopping' },
+  { name: 'Чат', path: '/chat' },
+  { name: 'Сповіщення', path: '/notifications' },
 ];
 
 export const Layout: React.FC = () => {
@@ -63,14 +63,14 @@ export const Layout: React.FC = () => {
             <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">FinanceAI</h1>
           </div>
 
-          {/* Navigation */}
+          {/* Navigation - без іконок */}
           <nav className="flex-1 px-3 py-4 space-y-1">
             {navigation.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                  `block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
@@ -78,8 +78,7 @@ export const Layout: React.FC = () => {
                 }
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="text-xl">{item.icon}</span>
-                <span>{item.name}</span>
+                {item.name}
               </NavLink>
             ))}
           </nav>
@@ -111,9 +110,9 @@ export const Layout: React.FC = () => {
                 onChange={(e) => setTheme(e.target.value as any)}
                 className="bg-transparent border border-white/20 rounded-lg px-2 py-1 text-sm focus:outline-none"
               >
-                <option value="system">🌓 Системна</option>
-                <option value="light">☀️ Світла</option>
-                <option value="dark">🌙 Темна</option>
+                <option value="system">Системна</option>
+                <option value="light">Світла</option>
+                <option value="dark">Темна</option>
               </select>
             </div>
             
