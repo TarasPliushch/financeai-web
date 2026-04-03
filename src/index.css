@@ -49,50 +49,55 @@ body {
   color: hsl(var(--foreground));
 }
 
-/* Card styles for both themes */
-.card-light {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+/* ==================== CARD STYLES ==================== */
+.card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 1rem;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
 }
 
-.dark .card-light {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
+.card:hover {
+  border-color: hsl(var(--primary) / 0.5);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
-.card-dark {
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-}
-
-/* Chat message bubbles */
-.message-user {
+/* ==================== CHAT MESSAGE STYLES ==================== */
+.chat-message-user {
   background-color: hsl(var(--primary));
   color: white;
   border-radius: 1.5rem;
-  border: none;
+  padding: 0.75rem 1rem;
+  max-width: 80%;
+  align-self: flex-end;
 }
 
-.message-assistant {
-  background-color: hsl(var(--secondary));
+.chat-message-assistant {
+  background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 1.5rem;
+  padding: 0.75rem 1rem;
+  max-width: 80%;
+  align-self: flex-start;
 }
 
-.dark .message-assistant {
+.dark .chat-message-assistant {
   background-color: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Goal cards */
+/* ==================== GOAL CARD STYLES ==================== */
 .goal-card {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 1rem;
-  transition: all 0.2s;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.goal-card:hover {
+  border-color: hsl(var(--primary) / 0.5);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
 .dark .goal-card {
@@ -100,16 +105,18 @@ body {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-.goal-card:hover {
-  border-color: hsl(var(--primary));
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+/* ==================== SHOPPING CARD STYLES ==================== */
+.shopping-card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
 }
 
-/* Shopping list cards */
-.shopping-card {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 1rem;
+.shopping-card:hover {
+  border-color: hsl(var(--primary) / 0.5);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
 .dark .shopping-card {
@@ -117,11 +124,17 @@ body {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Expense items */
+/* ==================== EXPENSE ITEM STYLES ==================== */
 .expense-item {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 0.75rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.expense-item:hover {
+  background-color: hsl(var(--secondary) / 0.5);
 }
 
 .dark .expense-item {
@@ -129,11 +142,22 @@ body {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Notification items */
+/* ==================== NOTIFICATION STYLES ==================== */
 .notification-item {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 0.75rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.notification-item:hover {
+  background-color: hsl(var(--secondary) / 0.3);
+}
+
+.notification-item-unread {
+  background-color: hsl(var(--primary) / 0.05);
+  border-color: hsl(var(--primary) / 0.3);
 }
 
 .dark .notification-item {
@@ -141,46 +165,71 @@ body {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-.notification-item-unread {
-  background-color: #fef2f2;
-  border-color: #fecaca;
-}
-
 .dark .notification-item-unread {
   background-color: rgba(236, 72, 153, 0.1);
   border-color: rgba(236, 72, 153, 0.3);
 }
 
-/* Sidebar */
+/* ==================== CHAT SESSION STYLES ==================== */
+.chat-session-item {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.chat-session-item:hover {
+  background-color: hsl(var(--secondary) / 0.5);
+}
+
+.chat-session-active {
+  background-color: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.dark .chat-session-item {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ==================== MODAL STYLES ==================== */
+.modal-content {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+}
+
+.dark .modal-content {
+  background-color: hsl(var(--card));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ==================== SIDEBAR STYLES ==================== */
 .sidebar-item {
   border-radius: 0.5rem;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .sidebar-item-active {
-  background-color: rgba(236, 72, 153, 0.1);
+  background-color: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
 }
 
 .sidebar-item-inactive {
-  color: #6b7280;
-}
-
-.dark .sidebar-item-inactive {
-  color: #9ca3af;
+  color: hsl(var(--muted-foreground));
 }
 
 .sidebar-item-inactive:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: #111827;
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--foreground));
 }
 
 .dark .sidebar-item-inactive:hover {
   background-color: rgba(255, 255, 255, 0.05);
-  color: #f9fafb;
 }
 
-/* Animations */
+/* ==================== ANIMATIONS ==================== */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -208,34 +257,22 @@ body {
   animation: bounce 0.6s ease-in-out infinite;
 }
 
-/* Custom scrollbar */
+/* ==================== SCROLLBAR ==================== */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: hsl(var(--muted));
   border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: #1f2937;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: hsl(var(--muted-foreground) / 0.3);
   border-radius: 4px;
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
-}
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: hsl(var(--muted-foreground) / 0.5);
 }

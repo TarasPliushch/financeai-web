@@ -85,55 +85,28 @@ export const ChatView: React.FC = () => {
     } catch (error) { toast.error('Помилка видалення'); }
   };
 
-  // Функція для виконання дій з командами
   const executeCommand = async (text: string): Promise<string | null> => {
-    // Додати витрату
     let match = text.match(/додай\s+витрату\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
     if (match) {
       try {
-        await api.createExpense({
-          title: match[1].trim(),
-          amount: parseFloat(match[2]),
-          category: 'Інше',
-          date: new Date().toISOString(),
-          isIncome: false,
-          currency: '₴'
-        });
+        await api.createExpense({ title: match[1].trim(), amount: parseFloat(match[2]), category: 'Інше', date: new Date().toISOString(), isIncome: false, currency: '₴' });
         return `✅ Витрату "${match[1]}" на ${match[2]}₴ додано!`;
       } catch (e) { return `❌ Помилка додавання витрати`; }
     }
-
-    // Додати дохід
     match = text.match(/додай\s+дохід\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
     if (match) {
       try {
-        await api.createExpense({
-          title: match[1].trim(),
-          amount: parseFloat(match[2]),
-          category: 'Зарплата',
-          date: new Date().toISOString(),
-          isIncome: true,
-          currency: '₴'
-        });
+        await api.createExpense({ title: match[1].trim(), amount: parseFloat(match[2]), category: 'Зарплата', date: new Date().toISOString(), isIncome: true, currency: '₴' });
         return `✅ Дохід "${match[1]}" на ${match[2]}₴ додано!`;
       } catch (e) { return `❌ Помилка додавання доходу`; }
     }
-
-    // Додати ціль
     match = text.match(/додай\s+ціль\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
     if (match) {
       try {
-        await api.createGoal({
-          name: match[1].trim(),
-          targetAmount: parseFloat(match[2]),
-          currentAmount: 0,
-          imageEmoji: '🎯',
-          currency: '₴'
-        });
+        await api.createGoal({ name: match[1].trim(), targetAmount: parseFloat(match[2]), currentAmount: 0, imageEmoji: '🎯', currency: '₴' });
         return `✅ Ціль "${match[1]}" на ${match[2]}₴ додано!`;
       } catch (e) { return `❌ Помилка додавання цілі`; }
     }
-
     return null;
   };
 
@@ -145,20 +118,14 @@ export const ChatView: React.FC = () => {
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
     setIsLoading(true);
-
     if (currentSessionId) await api.createChatMessage(currentSessionId, text, true);
 
-    // Спочатку виконуємо команду
     const commandResult = await executeCommand(text);
     
     try {
       setIsStreaming(true);
       setStreamingText('');
-      
-      const systemPrompt = commandResult 
-        ? `Ти Lis — фінансовий асистент. Користувач щойно виконав дію: ${commandResult}. Підтверди це коротко і запропонуй подальшу допомогу.`
-        : 'Ти Lis — фінансовий асистент. Відповідай українською коротко, використовуй емодзі. Допомагай з фінансами.';
-      
+      const systemPrompt = commandResult ? `Ти Lis — фінансовий асистент. Користувач щойно виконав дію: ${commandResult}. Підтверди це коротко і запропонуй подальшу допомогу.` : 'Ти Lis — фінансовий асистент. Відповідай українською коротко, використовуй емодзі.';
       const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` },
@@ -178,7 +145,6 @@ export const ChatView: React.FC = () => {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullResponse = '';
-      
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -194,16 +160,11 @@ export const ChatView: React.FC = () => {
           } catch (e) {}
         }
       }
-
       let finalResponse = fullResponse;
-      if (commandResult && !fullResponse.includes(commandResult)) {
-        finalResponse = commandResult + '\n\n' + fullResponse;
-      }
-      
+      if (commandResult && !fullResponse.includes(commandResult)) finalResponse = commandResult + '\n\n' + fullResponse;
       const aiMessage: ChatMessage = { id: Date.now().toString(), content: finalResponse || 'Готово!', isUser: false, timestamp: new Date() };
       setMessages(prev => [...prev, aiMessage]);
       if (currentSessionId) await api.createChatMessage(currentSessionId, aiMessage.content, false);
-      
     } catch (error) {
       console.error('❌ Помилка AI:', error);
       const errorMsg = commandResult || 'Вибач, сталася помилка. Спробуй ще раз.';
@@ -219,38 +180,34 @@ export const ChatView: React.FC = () => {
   const currentSession = sessions.find(s => s.id === currentSessionId);
 
   return (
-    <div className="flex h-full bg-background rounded-xl overflow-hidden border border-white/10">
-      {/* Sessions sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-20 w-80 bg-background border-r border-white/10 transform transition-transform md:relative md:translate-x-0 ${showSessions ? 'translate-x-0' : '-translate-x-full'}`}>
+    <div className="flex h-full bg-background rounded-xl overflow-hidden border border-border">
+      <div className={`fixed inset-y-0 left-0 z-20 w-80 bg-background border-r border-border transform transition-transform md:relative md:translate-x-0 ${showSessions ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
-          <div className="p-4 border-b border-white/10 flex justify-between items-center">
+          <div className="p-4 border-b border-border flex justify-between items-center">
             <h2 className="font-semibold">Історія чатів</h2>
-            <button onClick={() => setShowSessions(false)} className="md:hidden p-1 rounded-lg hover:bg-white/10">✕</button>
+            <button onClick={() => setShowSessions(false)} className="md:hidden p-1 rounded-lg hover:bg-secondary">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {sessions.map(s => (
-              <div key={s.id} className={`group relative p-3 rounded-lg cursor-pointer transition-all ${currentSessionId === s.id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-white/5'}`} onClick={() => { setCurrentSessionId(s.id); setShowSessions(false); }}>
+              <div key={s.id} className={`group relative p-3 rounded-lg cursor-pointer transition-all ${currentSessionId === s.id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-secondary'}`} onClick={() => { setCurrentSessionId(s.id); setShowSessions(false); }}>
                 <p className="font-medium text-sm truncate pr-8">{s.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{s.lastMessage || 'Новий чат'}</p>
                 <p className="text-xs text-muted-foreground mt-1">{format(s.updatedAt, 'dd MMM, HH:mm', { locale: uk })}</p>
                 <button onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} className="absolute right-2 top-2 p-1 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 3h6"/>
-                  </svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 3h6"/></svg>
                 </button>
               </div>
             ))}
           </div>
-          <div className="p-4 border-t border-white/10">
+          <div className="p-4 border-t border-border">
             <button onClick={createNewSession} className="w-full py-2 rounded-xl bg-primary text-white font-medium hover:opacity-90">+ Новий чат</button>
           </div>
         </div>
       </div>
 
-      {/* Chat area - full height no extra padding */}
       <div className="flex-1 flex flex-col h-full">
-        <div className="p-4 border-b border-white/10 flex items-center gap-3 flex-shrink-0">
-          <button onClick={() => setShowSessions(true)} className="md:hidden p-2 rounded-lg hover:bg-white/10">☰</button>
+        <div className="p-4 border-b border-border flex items-center gap-3 flex-shrink-0">
+          <button onClick={() => setShowSessions(true)} className="md:hidden p-2 rounded-lg hover:bg-secondary">☰</button>
           <h3 className="font-semibold flex-1">{currentSession?.name || 'Чат з AI'}</h3>
           <p className="text-xs text-muted-foreground">Lis</p>
         </div>
@@ -264,23 +221,23 @@ export const ChatView: React.FC = () => {
             </div>
           )}
           {messages.map(m => (
-            <div key={m.id} className={`flex ${m.isUser ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${m.isUser ? 'bg-primary text-white' : 'bg-white/10 border border-white/10'}`}>
+            <div key={m.id} className={`flex ${m.isUser ? 'justify-end' : 'justify-start'} mb-3`}>
+              <div className={m.isUser ? 'chat-message-user' : 'chat-message-assistant'}>
                 <p className="text-sm whitespace-pre-wrap">{m.content}</p>
                 <p className={`text-xs mt-1 ${m.isUser ? 'text-white/70' : 'text-muted-foreground'}`}>{format(m.timestamp, 'HH:mm')}</p>
               </div>
             </div>
           ))}
           {isStreaming && streamingText && (
-            <div className="flex justify-start">
-              <div className="max-w-[80%] rounded-2xl px-4 py-2.5 bg-white/10 border border-white/10">
+            <div className="flex justify-start mb-3">
+              <div className="chat-message-assistant">
                 <p className="text-sm whitespace-pre-wrap">{streamingText}<span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-1" /></p>
               </div>
             </div>
           )}
           {isLoading && !isStreaming && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl px-4 py-3 bg-white/10">
+            <div className="flex justify-start mb-3">
+              <div className="chat-message-assistant">
                 <div className="flex gap-1">
                   <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
                   <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
@@ -292,14 +249,14 @@ export const ChatView: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 border-t border-white/10 flex-shrink-0">
+        <div className="p-4 border-t border-border flex-shrink-0">
           <div className="flex gap-2">
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
               placeholder="Напишіть повідомлення..."
-              className="flex-1 px-4 py-3 rounded-xl border border-white/20 bg-white/5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="flex-1 px-4 py-3 rounded-xl border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
               rows={1}
               disabled={isLoading || isStreaming}
             />
