@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Expense } from '../../types';
 import { api } from '../../services/api';
@@ -14,17 +14,10 @@ export const ExpensesView: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; expense: Expense } | null>(null);
   const { user } = useAuth();
   const currency = user?.currency || '₴';
-  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadExpenses(); }, []);
-  useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
 
   const loadExpenses = async () => {
     setIsLoading(true);
@@ -37,16 +30,7 @@ export const ExpensesView: React.FC = () => {
     finally { setIsLoading(false); }
   };
 
-  const handleContextMenu = (e: React.MouseEvent, expense: Expense) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, expense });
-  };
-
-  const handleEdit = (expense: Expense) => {
-    setEditingExpense(expense);
-    setContextMenu(null);
-  };
-
+  const handleEdit = (expense: Expense) => setEditingExpense(expense);
   const handleDelete = async (expense: Expense) => {
     if (!confirm(`Видалити "${expense.title}"?`)) return;
     try {
@@ -54,7 +38,6 @@ export const ExpensesView: React.FC = () => {
       setExpenses(expenses.filter(e => e.id !== expense.id));
       toast.success('Видалено');
     } catch (error) { toast.error('Помилка видалення'); }
-    setContextMenu(null);
   };
 
   const displayedExpenses = expenses.filter(e => selectedTab === 'expenses' ? !e.isIncome : e.isIncome).sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -83,11 +66,10 @@ export const ExpensesView: React.FC = () => {
       </div>
       <div className="flex gap-2 border-b border-white/10"><button onClick={() => setSelectedTab('expenses')} className={`px-4 py-2 font-medium transition-colors ${selectedTab === 'expenses' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>📉 Витрати</button><button onClick={() => setSelectedTab('income')} className={`px-4 py-2 font-medium transition-colors ${selectedTab === 'income' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>📈 Доходи</button></div>
       <div className="space-y-3">
-        {displayedExpenses.length === 0 ? (<div className="text-center py-12"><div className="text-6xl mb-4">📭</div><p className="text-muted-foreground">Немає записів</p><p className="text-sm text-muted-foreground mt-1">Натисніть + щоб додати</p></div>) : (displayedExpenses.map(e => (<div key={e.id} onContextMenu={(ev) => handleContextMenu(ev, e)} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-context-menu group"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-2xl">{categoryEmoji(e.category)}</div><div className="flex-1"><h3 className="font-medium">{e.title}</h3><p className="text-sm text-muted-foreground">{e.category}</p><p className="text-xs text-muted-foreground">{format(e.date, 'dd MMM yyyy', { locale: uk })}</p></div><div className="text-right"><p className={`font-semibold ${e.isIncome ? 'text-green-500' : 'text-red-500'}`}>{e.isIncome ? '+' : '-'}{currency}{e.amount.toFixed(0)}</p></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleEdit(e)} className="p-2 rounded-lg hover:bg-white/10 transition-colors" title="Редагувати">✏️</button><button onClick={() => handleDelete(e)} className="p-2 rounded-lg hover:bg-red-500/20 transition-colors text-red-400" title="Видалити">🗑️</button></div></div>)))}
+        {displayedExpenses.length === 0 ? (<div className="text-center py-12"><div className="text-6xl mb-4">📭</div><p className="text-muted-foreground">Немає записів</p><p className="text-sm text-muted-foreground mt-1">Натисніть + щоб додати</p></div>) : (displayedExpenses.map(e => (<div key={e.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-2xl">{categoryEmoji(e.category)}</div><div className="flex-1"><h3 className="font-medium">{e.title}</h3><p className="text-sm text-muted-foreground">{e.category}</p><p className="text-xs text-muted-foreground">{format(e.date, 'dd MMM yyyy', { locale: uk })}</p></div><div className="text-right"><p className={`font-semibold ${e.isIncome ? 'text-green-500' : 'text-red-500'}`}>{e.isIncome ? '+' : '-'}{currency}{e.amount.toFixed(0)}</p></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleEdit(e)} className="p-2 rounded-lg hover:bg-white/10 transition-colors" title="Редагувати"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3l4 4-7 7H10v-4l7-7z"/><path d="M4 20h16"/></svg></button><button onClick={() => handleDelete(e)} className="p-2 rounded-lg hover:bg-red-500/20 transition-colors text-red-400" title="Видалити"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 3h6"/></svg></button></div></div>)))}
       </div>
       {showAddModal && <AddExpenseModal isIncome={selectedTab === 'income'} onClose={() => setShowAddModal(false)} onSave={async (data) => { const res = await api.createExpense(data); if (res.success && res.expense) { setExpenses([...expenses, { ...res.expense, date: new Date(res.expense.date) }]); toast.success('Додано'); setShowAddModal(false); } }} />}
       {editingExpense && <EditExpenseModal expense={editingExpense} onClose={() => setEditingExpense(null)} onSave={async (data) => { await api.updateExpense(editingExpense.serverId || editingExpense.id, data); loadExpenses(); toast.success('Оновлено'); setEditingExpense(null); }} />}
-      {contextMenu && (<div className="fixed z-50 bg-background border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-fade-in" style={{ top: contextMenu.y, left: contextMenu.x }} ref={menuRef}><button onClick={() => handleEdit(contextMenu.expense)} className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-white/10 transition-colors"><span className="text-lg">✏️</span><span>Редагувати</span></button><button onClick={() => handleDelete(contextMenu.expense)} className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-red-500/20 transition-colors text-red-400"><span className="text-lg">🗑️</span><span>Видалити</span></button></div>)}
     </div>
   );
 };
