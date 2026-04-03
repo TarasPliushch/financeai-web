@@ -87,20 +87,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       console.log('🔐 Fetching current user...');
       const response = await api.getCurrentUser();
-      console.log('🔐 Response:', response);
+      console.log('🔐 Response success:', response.success);
+      console.log('🔐 Response error:', response.error);
       
       if (response.success && response.user) {
         setUser(response.user);
         api.setUserId(response.user.id);
         console.log('✅ User loaded:', response.user.email);
-      } else {
-        console.log('🔐 Failed to load user, response not success');
+      } else if (response.error === 'Token expired' || response.error === 'Invalid token') {
+        // Тільки при явній помилці токена виходимо
+        console.log('🔐 Token expired/invalid, logging out');
         logout();
+      } else {
+        // При інших помилках (наприклад, мережевих) залишаємо токен
+        console.log('🔐 Server error, keeping token but user is null');
+        // Не виходимо з акаунту, просто немає користувача
       }
     } catch (error) {
       console.error('🔐 Error loading user:', error);
-      // Якщо помилка мережі, не виходимо з акаунту, але токен залишаємо
-      console.log('🔐 Network error, keeping token but user is null');
+      // При помилці мережі, не виходимо з акаунту
+      console.log('🔐 Network error, keeping token');
     }
     finally { 
       setIsLoading(false); 
