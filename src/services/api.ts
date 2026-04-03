@@ -57,39 +57,9 @@ class ApiService {
     return res.data;
   }
 
+  // Оновлення профілю - ВИКОРИСТОВУЄМО ДЛЯ PIN
   async updateProfile(data: any) {
     const res = await this.api.put('/auth/profile', data);
-    return res.data;
-  }
-
-  // ==================== PIN & BIOMETRICS ====================
-  async setPin(pinHash: string) {
-    const res = await this.api.put('/auth/pin', { pinHash });
-    return res.data;
-  }
-
-  async verifyPin(pin: string) {
-    const res = await this.api.post('/auth/verify-pin', { pin });
-    return res.data;
-  }
-
-  async getBiometricChallenge() {
-    const res = await this.api.get('/auth/biometric/challenge');
-    return res.data;
-  }
-
-  async registerBiometric(credential: any) {
-    const res = await this.api.post('/auth/biometric/register', credential);
-    return res.data;
-  }
-
-  async authenticateBiometric(credential: any) {
-    const res = await this.api.post('/auth/biometric/authenticate', credential);
-    return res.data;
-  }
-
-  async hasBiometric() {
-    const res = await this.api.get('/auth/biometric/status');
     return res.data;
   }
 

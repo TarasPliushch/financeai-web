@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../services/api';
 import toast from 'react-hot-toast';
-// import { BiometricAuth } from './BiometricAuth'; // Тимчасово коментуємо, поки не налаштуємо бекенд
 
 interface PinUnlockViewProps {
   onSuccess: () => void;
@@ -10,7 +10,7 @@ interface PinUnlockViewProps {
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const hashPin = async (pinCode: string): Promise<string> => {
     const encoder = new TextEncoder();
@@ -41,17 +41,35 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     }
 
     setIsLoading(true);
-    const hashedInput = await hashPin(pin);
-    const storedHash = user?.pinHash;
     
-    if (storedHash === hashedInput) {
-      toast.success('PIN-код правильний');
-      onSuccess();
-    } else {
-      toast.error('Невірний PIN-код');
-      setPin('');
+    try {
+      // Отримуємо актуальні дані користувача з сервера
+      await refreshUser();
+      
+      const storedHash = user?.pinHash;
+      
+      if (!storedHash) {
+        toast.error('PIN-код не встановлено');
+        setIsLoading(false);
+        return;
+      }
+      
+      const hashedInput = await hashPin(pin);
+      
+      if (storedHash === hashedInput) {
+        toast.success('PIN-код правильний');
+        localStorage.setItem('pinUnlocked', 'true');
+        onSuccess();
+      } else {
+        toast.error('Невірний PIN-код');
+        setPin('');
+      }
+    } catch (error) {
+      console.error('PIN verification error:', error);
+      toast.error('Помилка перевірки PIN');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const renderDots = () => {
@@ -133,6 +151,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           onClick={() => {
             localStorage.removeItem('authToken');
             localStorage.removeItem('userId');
+            localStorage.removeItem('pinUnlocked');
             window.location.href = '/login';
           }}
           className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"

@@ -13,7 +13,7 @@ export const PinSetupView: React.FC<PinSetupViewProps> = ({ onSuccess, onCancel,
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState<'enter' | 'confirm'>('enter');
   const [isLoading, setIsLoading] = useState(false);
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, refreshUser } = useAuth();
 
   const hashPin = async (pinCode: string): Promise<string> => {
     const encoder = new TextEncoder();
@@ -65,12 +65,15 @@ export const PinSetupView: React.FC<PinSetupViewProps> = ({ onSuccess, onCancel,
         setIsLoading(true);
         const hashedPin = await hashPin(pin);
         const success = await updateProfile({ pinHash: hashedPin });
-        setIsLoading(false);
         if (success) {
+          await refreshUser();
           toast.success(mode === 'setup' ? 'PIN-код встановлено!' : 'PIN-код змінено!');
           localStorage.setItem('pinEnabled', 'true');
           if (onSuccess) onSuccess();
+        } else {
+          toast.error('Помилка збереження PIN');
         }
+        setIsLoading(false);
       }
     }
   };
