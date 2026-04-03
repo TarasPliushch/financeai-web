@@ -10,74 +10,44 @@ export const RootView: React.FC = () => {
   const [showPinUnlock, setShowPinUnlock] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingPin, setIsCheckingPin] = useState(false);
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   useEffect(() => {
     const checkPin = async () => {
-      // Якщо користувач не автентифікований - чекаємо
       if (!isAuthenticated || !user) {
-        console.log('🔐 Користувач не автентифікований, чекаємо...');
-        return;
-      }
-
-      // Якщо вже розблоковано - не показуємо PIN
-      if (isUnlocked) {
-        setShowPinUnlock(false);
         return;
       }
 
       setIsCheckingPin(true);
       
       try {
-        // Оновлюємо дані користувача
         await refreshUser();
         
         const hasPin = !!user?.pinHash;
         
-        console.log('🔐 RootView: перевірка PIN');
-        console.log('  isAuthenticated:', isAuthenticated);
-        console.log('  hasPin:', hasPin);
-        console.log('  isUnlocked:', isUnlocked);
-        
-        // Якщо PIN встановлений - показуємо екран PIN
         if (hasPin && !isUnlocked) {
           setShowPinUnlock(true);
-        } else {
-          // Якщо PIN не встановлений - одразу в контент
+        } else if (!hasPin) {
           setIsUnlocked(true);
           setShowPinUnlock(false);
         }
       } catch (error) {
         console.error('Error checking PIN:', error);
-        // При помилці все одно пускаємо в контент
         setIsUnlocked(true);
         setShowPinUnlock(false);
       } finally {
         setIsCheckingPin(false);
-        setInitialCheckDone(true);
       }
     };
     
-    // Запускаємо перевірку тільки коли користувач завантажився
-    if (!isLoading && isAuthenticated && user && !initialCheckDone) {
+    if (!isLoading && isAuthenticated && user) {
       checkPin();
     }
-  }, [isAuthenticated, user, isLoading, isUnlocked, initialCheckDone]);
+  }, [isAuthenticated, user, isLoading, isUnlocked]);
 
   const handlePinSuccess = () => {
-    console.log('🔐 PIN успішно введено');
     setShowPinUnlock(false);
     setIsUnlocked(true);
   };
-
-  // Якщо користувач вийшов - скидаємо стан
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setIsUnlocked(false);
-      setShowPinUnlock(false);
-      setInitialCheckDone(false);
-    }
-  }, [isAuthenticated]);
 
   if (isLoading || showSplash || isCheckingPin) {
     return <SplashView onFinish={() => setShowSplash(false)} />;

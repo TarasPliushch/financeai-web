@@ -19,7 +19,6 @@ interface AuthContextType {
   resetPassword: (email: string, code: string, newPassword: string) => Promise<boolean>;
   verifyTwoFactor: (email: string, code: string) => Promise<boolean>;
   pendingTwoFactorEmail: string;
-  checkPin: (pin: string) => Promise<{ success: boolean; error?: string; blocked?: boolean; attemptsLeft?: number }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,24 +43,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadUser(); 
   }, []);
 
-  const checkSessionExpiry = (): boolean => {
-    const loginTime = localStorage.getItem(LOGIN_TIME_KEY);
-    if (!loginTime) return false;
-    const loginTimestamp = parseInt(loginTime, 10);
-    const elapsed = Date.now() - loginTimestamp;
-    if (elapsed >= SESSION_DURATION_MS) return true;
-    return false;
-  };
-
   const loadUser = async () => {
     const token = api.getToken();
     if (!token) {
-      setIsLoading(false);
-      return;
-    }
-    
-    if (checkSessionExpiry()) {
-      logout();
       setIsLoading(false);
       return;
     }
@@ -96,48 +80,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const checkPin = async (pin: string): Promise<{ success: boolean; error?: string; blocked?: boolean; attemptsLeft?: number }> => {
-    try {
-      const token = api.getToken();
-      const userId = api.getUserId();
-      
-      if (!token || !userId) {
-        return { success: false, error: 'Не авторизовано' };
-      }
-      
-      const response = await fetch('https://my-finance-app-2026-production.up.railway.app/api/auth/verify-pin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'user-id': userId
-        },
-        body: JSON.stringify({ pin })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        return { success: true };
-      } else {
-        return { 
-          success: false, 
-          error: data.error || 'Невірний PIN', 
-          blocked: data.blocked,
-          attemptsLeft: data.attemptsLeft 
-        };
-      }
-    } catch (error) {
-      return { success: false, error: 'Помилка перевірки PIN' };
-    }
-  };
-
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const response: AuthResponse = await api.login(email, password);
       if (response.requires2FA) { 
         setPendingTwoFactorEmail(email); 
-        toast.info('Код 2FA надіслано на ваш email');
+        toast.info('Код 2FA надіслано на email');
         return false; 
       }
       if (response.token && response.user) {
@@ -288,8 +236,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <AuthContext.Provider value={{
       user, isLoading, isAuthenticated: !!user, requiresEmailVerification,
       login, register, logout, updateProfile, refreshUser, verifyEmail, resendVerification,
-      requestPasswordReset, resetPassword, verifyTwoFactor, pendingTwoFactorEmail,
-      checkPin
+      requestPasswordReset, resetPassword, verifyTwoFactor, pendingTwoFactorEmail
     }}>
       {children}
     </AuthContext.Provider>
