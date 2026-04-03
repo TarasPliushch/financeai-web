@@ -12,6 +12,7 @@ interface AuthContextType {
   register: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<boolean>;
+  refreshUser: () => Promise<void>;
   verifyEmail: (code: string) => Promise<boolean>;
   resendVerification: () => Promise<boolean>;
   requestPasswordReset: (email: string) => Promise<boolean>;
@@ -48,6 +49,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     } catch (error) { console.error(error); }
     finally { setIsLoading(false); }
+  };
+
+  const refreshUser = async () => {
+    console.log("🔄 Оновлення даних користувача...");
+    try {
+      const token = api.getToken();
+      if (token) {
+        const response = await api.getCurrentUser();
+        if (response.success && response.user) {
+          setUser(response.user);
+          console.log("✅ Дані користувача оновлено");
+        }
+      }
+    } catch (error) {
+      console.error("❌ Помилка оновлення:", error);
+    }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -187,7 +204,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   return (
     <AuthContext.Provider value={{
       user, isLoading, isAuthenticated: !!user, requiresEmailVerification,
-      login, register, logout, updateProfile, verifyEmail, resendVerification,
+      login, register, logout, updateProfile, refreshUser, verifyEmail, resendVerification,
       requestPasswordReset, resetPassword, verifyTwoFactor, pendingTwoFactorEmail
     }}>
       {children}
