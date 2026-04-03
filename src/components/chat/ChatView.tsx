@@ -74,7 +74,64 @@ export const ChatView: React.FC = () => {
     } catch (error) { toast.error('Помилка створення чату'); }
   };
 
-  // ==================== ОСНОВНА ФУНКЦІЯ ВИКОНАННЯ ДІЙ ====================
+  // ==================== ПАРСИНГ КОМАНД З ТЕКСТУ AI ====================
+  const parseActionsFromText = (text: string): { action: string; params: any }[] => {
+    const actions: { action: string; params: any }[] = [];
+    
+    // Шукаємо команди у форматі {{ADD_GOAL:name|amount|emoji|notes|deadline}}
+    const patterns = [
+      {
+        regex: /\{\{ADD_GOAL:([^|]+)\|([^|]+)\|([^|]+)\|([^|]*)\|?([^}]*)\}\}/i,
+        action: 'ADD_GOAL',
+        parser: (m: RegExpMatchArray) => ({
+          name: m[1].trim(),
+          amount: parseFloat(m[2]),
+          emoji: m[3].trim() || '🎯',
+          notes: m[4].trim(),
+          deadline: m[5].trim() !== 'none' ? m[5].trim() : null
+        })
+      },
+      {
+        regex: /\{\{ADD_EXPENSE:([^|]+)\|([^|]+)\|([^|]+)\|([^|]*)\|([^}]+)\}\}/i,
+        action: 'ADD_EXPENSE',
+        parser: (m: RegExpMatchArray) => ({
+          title: m[1].trim(),
+          amount: parseFloat(m[2]),
+          category: m[3].trim(),
+          notes: m[4].trim(),
+          isIncome: m[5].trim().toLowerCase() === 'true'
+        })
+      },
+      {
+        regex: /\{\{CREATE_LIST:([^}]+)\}\}/i,
+        action: 'CREATE_SHOPPING_LIST',
+        parser: (m: RegExpMatchArray) => ({ name: m[1].trim() })
+      },
+      {
+        regex: /\{\{ADD_ITEMS:([^|]+)\|([^}]+)\}\}/i,
+        action: 'ADD_SHOPPING_ITEMS',
+        parser: (m: RegExpMatchArray) => ({
+          listName: m[1].trim(),
+          items: m[2].split(',').map(i => i.trim())
+        })
+      }
+    ];
+    
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.regex.exec(text)) !== null) {
+        console.log(`✅ Знайдено команду ${pattern.action}:`, match);
+        actions.push({
+          action: pattern.action,
+          params: pattern.parser(match)
+        });
+      }
+    }
+    
+    return actions;
+  };
+
+  // ==================== ВИКОНАННЯ ДІЙ ====================
   const executeAction = async (action: string, params: any): Promise<string | null> => {
     console.log('🚀 Виконую дію:', action, params);
     
@@ -87,34 +144,14 @@ export const ChatView: React.FC = () => {
           category: params.category || 'Інше',
           date: new Date().toISOString(),
           notes: params.notes || '',
-          isIncome: false,
+          isIncome: params.isIncome === true,
           currency: user?.currency || '₴'
         };
         console.log('📤 Надсилаємо витрату:', expenseData);
         const response = await api.createExpense(expenseData);
         console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `✅ Витрату "${params.title}" на ${params.amount}${user?.currency || '₴'} додано до розділу Фінанси!`;
-        }
-        return `❌ Помилка: ${response.error || 'невідома помилка'}`;
-      }
-      
-      // ДОДАТИ ДОХІД
-      if (action === 'ADD_INCOME') {
-        const incomeData = {
-          title: params.title,
-          amount: params.amount,
-          category: params.category || 'Зарплата',
-          date: new Date().toISOString(),
-          notes: params.notes || '',
-          isIncome: true,
-          currency: user?.currency || '₴'
-        };
-        console.log('📤 Надсилаємо дохід:', incomeData);
-        const response = await api.createExpense(incomeData);
-        console.log('📥 Відповідь сервера:', response);
-        if (response.success) {
-          return `✅ Дохід "${params.title}" на ${params.amount}${user?.currency || '₴'} додано до розділу Фінанси!`;
+          return `✅ Витрату "${params.title}" на ${params.amount}${user?.currency || '₴'} додано!`;
         }
         return `❌ Помилка: ${response.error || 'невідома помилка'}`;
       }
@@ -127,7 +164,7 @@ export const ChatView: React.FC = () => {
           currentAmount: 0,
           imageEmoji: params.emoji || '🎯',
           notes: params.notes || '',
-          deadline: null,
+          deadline: params.deadline,
           currency: user?.currency || '₴'
         };
         console.log('📤 Надсилаємо ціль:', goalData);
@@ -146,7 +183,7 @@ export const ChatView: React.FC = () => {
         const response = await api.createShoppingList(listData);
         console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `🛒 Список покупок "${params.name}" створено! Додавайте товари командою "додай до списку ${params.name} товар1, товар2"`;
+          return `🛒 Список покупок "${params.name}" створено!`;
         }
         return `❌ Помилка: ${response.error || 'невідома помилка'}`;
       }
@@ -165,7 +202,7 @@ export const ChatView: React.FC = () => {
             }
             return `✅ Додано ${successCount}/${params.items.length} товарів до списку "${params.listName}"!`;
           }
-          return `❌ Список "${params.listName}" не знайдено. Спочатку створіть список.`;
+          return `❌ Список "${params.listName}" не знайдено.`;
         }
         return `❌ Помилка отримання списків`;
       }
@@ -177,47 +214,10 @@ export const ChatView: React.FC = () => {
     }
   };
 
-  // ==================== ПАРСИНГ КОМАНД ====================
-  const parseActions = (text: string): { action: string; params: any }[] => {
-    const actions: { action: string; params: any }[] = [];
-    
-    console.log('🔍 Парсимо текст:', text);
-    
-    // Додати витрату: "додай витрату Кава на 50 грн"
-    let match = text.match(/додай\s+витрату\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
-    if (match) {
-      actions.push({ action: 'ADD_EXPENSE', params: { title: match[1].trim(), amount: parseFloat(match[2]), category: 'Інше' } });
-    }
-    
-    // Додати дохід
-    match = text.match(/додай\s+дохід\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
-    if (match) {
-      actions.push({ action: 'ADD_INCOME', params: { title: match[1].trim(), amount: parseFloat(match[2]), category: 'Зарплата' } });
-    }
-    
-    // Додати ціль
-    match = text.match(/додай\s+ціль\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
-    if (match) {
-      actions.push({ action: 'ADD_GOAL', params: { name: match[1].trim(), amount: parseFloat(match[2]), emoji: '🎯' } });
-    }
-    
-    // Створити список покупок
-    match = text.match(/створи\s+список\s+покупок\s+["']?([^"']+)["']?/i);
-    if (match) {
-      actions.push({ action: 'CREATE_SHOPPING_LIST', params: { name: match[1].trim() } });
-    }
-    
-    // Додати до списку
-    match = text.match(/додай\s+до\s+списку\s+["']?([^"']+)["']?\s+(.+)/i);
-    if (match) {
-      const items = match[2].split(/[,，、]/).map(i => i.trim()).filter(i => i);
-      if (items.length > 0) {
-        actions.push({ action: 'ADD_SHOPPING_ITEMS', params: { listName: match[1].trim(), items } });
-      }
-    }
-    
-    console.log('📋 Знайдені дії:', actions);
-    return actions;
+  // ==================== ОЧИЩЕННЯ ТЕКСТУ ВІД ТЕГІВ ====================
+  const cleanTextFromTags = (text: string): string => {
+    // Видаляємо всі теги {{...}}
+    return text.replace(/\{\{[^}]+\}\}/g, '').trim();
   };
 
   // ==================== ВІДПРАВКА ПОВІДОМЛЕННЯ ====================
@@ -234,36 +234,36 @@ export const ChatView: React.FC = () => {
     // Зберігаємо повідомлення в чаті
     if (currentSessionId) await api.createChatMessage(currentSessionId, text, true);
 
-    // ВИКОНУЄМО КОМАНДИ
-    const actions = parseActions(text);
-    let actionResults: string[] = [];
-    
-    for (const act of actions) {
-      const result = await executeAction(act.action, act.params);
-      if (result) actionResults.push(result);
-    }
-
-    // Формуємо запит до AI
-    const systemPrompt = `Ти Lis — фінансовий асистент. Відповідай українською коротко, використовуй емодзі. 
-Ти допомагаєш з аналізом витрат, плануванням бюджету, цілями та покупками.
-${actionResults.length ? `\n\nКОРИСТУВАЧ ВИКОНАВ ДІЇ:\n${actionResults.join('\n')}\n\nПідтверди виконання і запропонуй подальшу допомогу.` : ''}`;
-
     try {
       setIsStreaming(true);
       setStreamingText('');
       
+      // Формуємо запит до AI
       const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` },
         body: JSON.stringify({
           model: 'deepseek-chat',
           messages: [
-            { role: 'system', content: systemPrompt },
+            { 
+              role: 'system', 
+              content: `Ти Lis — фінансовий асистент. Відповідай українською, використовуй емодзі.
+Ти допомагаєш з аналізом витрат, плануванням бюджету, цілями та покупками.
+
+КОЛИ ПОТРІБНО ДОДАТИ ДАНІ - ВИКОРИСТОВУЙ ЦІ ТЕГИ В КІНЦІ ВІДПОВІДІ:
+- Для цілі: {{ADD_GOAL:назва|сума|емодзі|нотатки|none}}
+- Для витрати: {{ADD_EXPENSE:назва|сума|категорія|нотатки|false}}
+- Для доходу: {{ADD_EXPENSE:назва|сума|категорія|нотатки|true}}
+- Для списку покупок: {{CREATE_LIST:назва}}
+- Для товарів у список: {{ADD_ITEMS:назва_списку|товар1,товар2,товар3}}
+
+Після виконання дії підтвердь це користувачеві.`
+            },
             ...messages.slice(-8).map(m => ({ role: m.isUser ? 'user' : 'assistant', content: m.content })),
             { role: 'user', content: text }
           ],
           temperature: 0.7,
-          max_tokens: 500,
+          max_tokens: 800,
           stream: true,
         }),
       });
@@ -288,9 +288,28 @@ ${actionResults.length ? `\n\nКОРИСТУВАЧ ВИКОНАВ ДІЇ:\n${act
         }
       }
 
-      const aiMessage: ChatMessage = { id: Date.now().toString(), content: fullResponse || 'Готово!', isUser: false, timestamp: new Date() };
+      // Парсимо команди з відповіді AI
+      const actions = parseActionsFromText(fullResponse);
+      console.log('📋 Знайдені дії у відповіді AI:', actions);
+      
+      let actionResults: string[] = [];
+      for (const act of actions) {
+        const result = await executeAction(act.action, act.params);
+        if (result) actionResults.push(result);
+      }
+      
+      // Очищуємо текст від тегів для відображення
+      const cleanResponse = cleanTextFromTags(fullResponse);
+      
+      // Додаємо результати дій до відповіді, якщо вони є
+      let finalResponse = cleanResponse;
+      if (actionResults.length > 0) {
+        finalResponse = cleanResponse + '\n\n' + actionResults.join('\n');
+      }
+      
+      const aiMessage: ChatMessage = { id: Date.now().toString(), content: finalResponse, isUser: false, timestamp: new Date() };
       setMessages(prev => [...prev, aiMessage]);
-      if (currentSessionId) await api.createChatMessage(currentSessionId, aiMessage.content, false);
+      if (currentSessionId) await api.createChatMessage(currentSessionId, finalResponse, false);
       
     } catch (error) {
       console.error('❌ Помилка AI:', error);
