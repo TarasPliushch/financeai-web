@@ -19,13 +19,26 @@ export const ProfileView: React.FC = () => {
   useEffect(() => {
     // Load avatar from user profile (server)
     if (user?.avatarEmoji) {
-      console.log("📸 Отримано avatarEmoji:", user.avatarEmoji.substring(0, 50));
-      if (user.avatarEmoji.startsWith('data:image') || user.avatarEmoji.startsWith('http')) {
-        setAvatarImageUrl(user.avatarEmoji);
+      const avatar = user.avatarEmoji;
+      console.log("📸 Отримано avatarEmoji, довжина:", avatar.length, "початок:", avatar.substring(0, 30));
+      
+      // Перевіряємо, чи це base64 зображення
+      if (avatar.startsWith('data:image')) {
+        setAvatarImageUrl(avatar);
         setEditAvatarEmoji('📷');
-      } else {
-        setEditAvatarEmoji(user.avatarEmoji);
+        console.log("✅ Визначено як base64 зображення");
+      } 
+      // Перевіряємо, чи це URL
+      else if (avatar.startsWith('http')) {
+        setAvatarImageUrl(avatar);
+        setEditAvatarEmoji('📷');
+        console.log("✅ Визначено як URL зображення");
+      }
+      // Інакше - це емодзі
+      else {
+        setEditAvatarEmoji(avatar);
         setAvatarImageUrl(null);
+        console.log("✅ Визначено як емодзі:", avatar);
       }
     }
   }, [user]);
@@ -93,7 +106,16 @@ export const ProfileView: React.FC = () => {
           <div className="relative">
             <div className="w-28 h-28 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-primary/20">
               {avatarImageUrl ? (
-                <img src={avatarImageUrl} alt="Avatar" className="w-full h-full object-cover" />
+                <img 
+                  src={avatarImageUrl} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover"
+                  onError={() => {
+                    console.error("❌ Помилка завантаження зображення");
+                    setAvatarImageUrl(null);
+                    setEditAvatarEmoji('👤');
+                  }}
+                />
               ) : (
                 <span className="text-5xl">{editAvatarEmoji}</span>
               )}
