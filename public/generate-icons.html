@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Icons</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    .icon { display: inline-block; margin: 20px; text-align: center; }
+    canvas { border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>Згенеруйте іконки для FinanceAI</h1>
+  <p>Ці іконки будуть створені автоматично. Збережіть їх вручну:</p>
+  
+  <div class="icon">
+    <canvas id="icon16" width="16" height="16"></canvas>
+    <p>favicon-16x16.png</p>
+  </div>
+  <div class="icon">
+    <canvas id="icon32" width="32" height="32"></canvas>
+    <p>favicon-32x32.png</p>
+  </div>
+  <div class="icon">
+    <canvas id="icon180" width="180" height="180"></canvas>
+    <p>apple-touch-icon.png</p>
+  </div>
+  
+  <script>
+    function drawIcon(ctx, size) {
+      const center = size / 2;
+      const radius = size * 0.35;
+      
+      // Градієнт
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#FF2D55');
+      gradient.addColorStop(1, '#AF52DE');
+      
+      // Закруглений квадрат
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, size * 0.2);
+      ctx.fill();
+      
+      // Емодзі мозку
+      ctx.fillStyle = 'white';
+      ctx.font = `${size * 0.6}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🧠', center, center);
+    }
+    
+    // RoundRect helper
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (w < 2 * r) r = w / 2;
+      if (h < 2 * r) r = h / 2;
+      this.moveTo(x+r, y);
+      this.lineTo(x+w-r, y);
+      this.quadraticCurveTo(x+w, y, x+w, y+r);
+      this.lineTo(x+w, y+h-r);
+      this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+      this.lineTo(x+r, y+h);
+      this.quadraticCurveTo(x, y+h, x, y+h-r);
+      this.lineTo(x, y+r);
+      this.quadraticCurveTo(x, y, x+r, y);
+      return this;
+    };
+    
+    // Малюємо всі іконки
+    drawIcon(document.getElementById('icon16').getContext('2d'), 16);
+    drawIcon(document.getElementById('icon32').getContext('2d'), 32);
+    drawIcon(document.getElementById('icon180').getContext('2d'), 180);
+    
+    console.log('Іконки згенеровано. Натисніть правою кнопкою на кожній іконці та оберіть "Зберегти зображення як..."');
+  </script>
+</body>
+</html>
