@@ -6,18 +6,53 @@ interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
-// Функція для хешування PIN (ідентична до iOS)
-const hashPin = async (pin: string, userId: string): Promise<string> => {
-  // iOS: SHA256(userId + pin)
-  const input = userId + pin;
-  console.log('🔐 Хешування: input =', input);
+// Функція для хешування PIN з різними варіантами
+const hashPinVariants = async (pin: string, userId: string): Promise<{ method: string; hash: string }[]> => {
+  const results = [];
+  
+  // Варіант 1: iOS формат (userId + pin)
+  const input1 = userId + pin;
   const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hexHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  console.log('🔐 Хеш =', hexHash);
-  return hexHash;
+  const data1 = encoder.encode(input1);
+  const hashBuffer1 = await crypto.subtle.digest('SHA-256', data1);
+  const hashArray1 = Array.from(new Uint8Array(hashBuffer1));
+  const hexHash1 = hashArray1.map(b => b.toString(16).padStart(2, '0')).join('');
+  results.push({ method: `userId+pin (${input1})`, hash: hexHash1 });
+  
+  // Варіант 2: pin + userId
+  const input2 = pin + userId;
+  const data2 = encoder.encode(input2);
+  const hashBuffer2 = await crypto.subtle.digest('SHA-256', data2);
+  const hashArray2 = Array.from(new Uint8Array(hashBuffer2));
+  const hexHash2 = hashArray2.map(b => b.toString(16).padStart(2, '0')).join('');
+  results.push({ method: `pin+userId (${input2})`, hash: hexHash2 });
+  
+  // Варіант 3: без userId (тільки pin)
+  const input3 = pin;
+  const data3 = encoder.encode(input3);
+  const hashBuffer3 = await crypto.subtle.digest('SHA-256', data3);
+  const hashArray3 = Array.from(new Uint8Array(hashBuffer3));
+  const hexHash3 = hashArray3.map(b => b.toString(16).padStart(2, '0')).join('');
+  results.push({ method: `only pin (${input3})`, hash: hexHash3 });
+  
+  // Варіант 4: userId без префікса "user_" + pin
+  const cleanUserId = userId.replace('user_', '');
+  const input4 = cleanUserId + pin;
+  const data4 = encoder.encode(input4);
+  const hashBuffer4 = await crypto.subtle.digest('SHA-256', data4);
+  const hashArray4 = Array.from(new Uint8Array(hashBuffer4));
+  const hexHash4 = hashArray4.map(b => b.toString(16).padStart(2, '0')).join('');
+  results.push({ method: `cleanUserId+pin (${input4})`, hash: hexHash4 });
+  
+  // Варіант 5: pin + userId без префікса
+  const input5 = pin + cleanUserId;
+  const data5 = encoder.encode(input5);
+  const hashBuffer5 = await crypto.subtle.digest('SHA-256', data5);
+  const hashArray5 = Array.from(new Uint8Array(hashBuffer5));
+  const hexHash5 = hashArray5.map(b => b.toString(16).padStart(2, '0')).join('');
+  results.push({ method: `pin+cleanUserId (${input5})`, hash: hexHash5 });
+  
+  return results;
 };
 
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
@@ -48,7 +83,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
-      // Отримуємо актуальні дані користувача з сервера
       await refreshUser();
       
       const storedHash = user?.pinHash;
@@ -59,7 +93,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         return;
       }
       
-      // Отримуємо userId - ЦЕ КЛЮЧОВИЙ МОМЕНТ
       const userId = user?.id || '';
       
       console.log('========== PIN VERIFICATION DEBUG ==========');
@@ -68,14 +101,28 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       console.log('Entered PIN:', pin);
       console.log('Stored hash from server:', storedHash);
       
-      // Хешуємо введений PIN
-      const hashedInput = await hashPin(pin, userId);
+      // Перевіряємо всі варіанти хешування
+      const variants = await hashPinVariants(pin, userId);
       
-      console.log('Calculated hash:', hashedInput);
-      console.log('Hashes match?', storedHash === hashedInput);
+      console.log('All hash variants:');
+      let foundMatch = false;
+      let matchingMethod = '';
+      
+      for (const variant of variants) {
+        console.log(`  ${variant.method}: ${variant.hash}`);
+        if (variant.hash === storedHash) {
+          foundMatch = true;
+          matchingMethod = variant.method;
+        }
+      }
+      
+      console.log('Match found:', foundMatch);
+      if (foundMatch) {
+        console.log('Matching method:', matchingMethod);
+      }
       console.log('============================================');
       
-      if (storedHash === hashedInput) {
+      if (foundMatch) {
         toast.success('PIN-код правильний');
         onSuccess();
       } else {
