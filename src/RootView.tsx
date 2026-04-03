@@ -13,17 +13,16 @@ export const RootView: React.FC = () => {
 
   useEffect(() => {
     const checkPin = async () => {
-      // Якщо користувач не автентифікований - не показуємо PIN
+      // Якщо користувач не автентифікований - чекаємо завантаження
       if (!isAuthenticated || !user) {
-        setIsUnlocked(false);
-        setShowPinUnlock(false);
+        console.log('🔐 Користувач не автентифікований, чекаємо...');
         return;
       }
 
       setIsCheckingPin(true);
       
       try {
-        // Оновлюємо дані користувача
+        // Оновлюємо дані користувача для отримання актуального pinHash
         await refreshUser();
         
         const hasPin = !!user?.pinHash;
@@ -32,20 +31,19 @@ export const RootView: React.FC = () => {
         console.log('  isAuthenticated:', isAuthenticated);
         console.log('  hasPin:', hasPin);
         console.log('  isUnlocked:', isUnlocked);
+        console.log('  showPinUnlock:', showPinUnlock);
         
         // Якщо PIN встановлений і ще не розблоковано - показуємо екран PIN
-        if (hasPin && !isUnlocked) {
+        if (hasPin && !isUnlocked && !showPinUnlock) {
           setShowPinUnlock(true);
         } else if (!hasPin) {
           // Якщо PIN не встановлений - одразу в контент
           setIsUnlocked(true);
           setShowPinUnlock(false);
-        } else if (hasPin && isUnlocked) {
-          // Якщо вже розблоковано - одразу в контент
-          setShowPinUnlock(false);
         }
       } catch (error) {
         console.error('Error checking PIN:', error);
+        // При помилці все одно пускаємо в контент
         setIsUnlocked(true);
         setShowPinUnlock(false);
       } finally {
@@ -53,8 +51,11 @@ export const RootView: React.FC = () => {
       }
     };
     
-    checkPin();
-  }, [isAuthenticated, user, isUnlocked]);
+    // Запускаємо перевірку тільки коли користувач завантажився
+    if (!isLoading && isAuthenticated && user) {
+      checkPin();
+    }
+  }, [isAuthenticated, user, isLoading, isUnlocked, showPinUnlock]);
 
   const handlePinSuccess = () => {
     console.log('🔐 PIN успішно введено');

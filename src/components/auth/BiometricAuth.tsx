@@ -6,15 +6,10 @@ interface BiometricAuthProps {
   onError?: (error: string) => void;
 }
 
-declare global {
-  interface Window {
-    PublicKeyCredential: any;
-  }
-}
-
 export const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess, onError }) => {
   const [isAvailable, setIsAvailable] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isSupported, setIsSupported] = useState(true);
 
   useEffect(() => {
     checkBiometricAvailability();
@@ -23,14 +18,32 @@ export const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess, onError
   const checkBiometricAvailability = async () => {
     try {
       // Перевіряємо наявність WebAuthn API
-      if (window.PublicKeyCredential && 
-          typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
+      if (!window.PublicKeyCredential) {
+        console.log('WebAuthn not supported');
+        setIsSupported(false);
+        setIsAvailable(false);
+        return;
+      }
+
+      // Перевіряємо наявність платформного аутентифікатора (Touch ID / Windows Hello)
+      if (typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
         const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
         setIsAvailable(available);
-        console.log('🔐 WebAuthn available:', available);
+        console.log('🔐 Platform authenticator available:', available);
+      } else {
+        setIsAvailable(false);
       }
+
+      // Також перевіряємо, чи є в браузері підтримка
+      const isMac = navigator.userAgent.indexOf('Mac') !== -1;
+      const isWindows = navigator.userAgent.indexOf('Windows') !== -1;
+      const isChrome = navigator.userAgent.indexOf('Chrome') !== -1;
+      const isEdge = navigator.userAgent.indexOf('Edg') !== -1;
+      
+      console.log('🔐 Biometric check:', { isMac, isWindows, isChrome, isEdge });
+      
     } catch (error) {
-      console.log('WebAuthn not supported:', error);
+      console.error('Error checking biometric availability:', error);
       setIsAvailable(false);
     }
   };
@@ -39,45 +52,51 @@ export const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess, onError
     setIsAuthenticating(true);
     
     try {
-      // Перевіряємо, чи підтримується WebAuthn
+      // Перевіряємо підтримку
       if (!window.PublicKeyCredential) {
         throw new Error('WebAuthn не підтримується в цьому браузері');
       }
 
-      // Створюємо запит на автентифікацію
-      // Для простоти використовуємо базову перевірку через SimpleWebAuthn
-      // В реальному проекті потрібно налаштувати сервер для WebAuthn
-      
-      // Тимчасове рішення - використовуємо SimpleWebAuthn бібліотеку
-      // Або показуємо повідомлення про необхідність налаштування
-      
       // Для macOS з Touch ID та Windows з Hello
-      if (window.Platform?.macOS || window.Platform?.win32) {
-        // Спроба використати WebAuthn через браузер
-        const publicKeyCredentialRequestOptions = {
-          challenge: new Uint8Array(32),
-          rpId: window.location.hostname,
-          userVerification: 'required',
-          timeout: 60000,
-        };
-        
-        // Це спробує викликати системний діалог біометрії
-        const credential = await navigator.credentials.get({
-          publicKey: publicKeyCredentialRequestOptions as any
-        }).catch(() => null);
-        
-        if (credential) {
-          toast.success('Біометрична автентифікація успішна!');
-          onSuccess();
-        } else {
-          throw new Error('Автентифікацію скасовано');
-        }
+      // Створюємо запит на автентифікацію
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+      
+      const publicKeyCredentialRequestOptions = {
+        challenge: challenge,
+        rpId: window.location.hostname,
+        userVerification: 'required' as const,
+        timeout: 60000,
+      };
+      
+      console.log('🔐 Requesting biometric authentication...');
+      
+      // Викликаємо системний діалог біометрії
+      const credential = await navigator.credentials.get({
+        publicKey: publicKeyCredentialRequestOptions
+      });
+      
+      if (credential) {
+        console.log('🔐 Biometric authentication successful');
+        toast.success('Біометрична автентифікація успішна!');
+        onSuccess();
       } else {
-        throw new Error('Біометрична автентифікація не налаштована');
+        throw new Error('Автентифікацію скасовано');
       }
     } catch (error: any) {
       console.error('Biometric auth error:', error);
-      const errorMsg = error.message || 'Помилка біометричної автентифікації';
+      
+      let errorMsg = 'Помилка біометричної автентифікації';
+      if (error.name === 'NotAllowedError') {
+        errorMsg = 'Автентифікацію скасовано';
+      } else if (error.name === 'NotSupportedError') {
+        errorMsg = 'Біометрична автентифікація не підтримується в цьому браузері';
+      } else if (error.message === 'WebAuthn не підтримується в цьому браузері') {
+        errorMsg = error.message;
+      } else {
+        errorMsg = 'Біометрична автентифікація не налаштована. Використовуйте PIN-код.';
+      }
+      
       toast.error(errorMsg);
       if (onError) onError(errorMsg);
     } finally {
@@ -85,7 +104,8 @@ export const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess, onError
     }
   };
 
-  if (!isAvailable) {
+  // Не показуємо кнопку, якщо біометрія недоступна
+  if (!isAvailable || !isSupported) {
     return null;
   }
 
