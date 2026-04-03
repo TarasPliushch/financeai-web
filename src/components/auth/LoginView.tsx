@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { BiometricAuth } from './BiometricAuth';
 
 export const LoginView: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const { login, pendingTwoFactorEmail } = useAuth();
   const navigate = useNavigate();
 
@@ -35,11 +33,6 @@ export const LoginView: React.FC = () => {
       navigate('/2fa', { state: { email: pendingTwoFactorEmail } });
     }
   }, [pendingTwoFactorEmail, navigate]);
-
-  const handleBiometricSuccess = () => {
-    // Після біометричної автентифікації перенаправляємо
-    navigate('/');
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
@@ -81,16 +74,6 @@ export const LoginView: React.FC = () => {
             />
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-border"
-            />
-            <span className="text-sm text-muted-foreground">Запам'ятати мене</span>
-          </label>
-
           <button
             type="submit"
             disabled={isLoading}
@@ -106,8 +89,6 @@ export const LoginView: React.FC = () => {
             )}
           </button>
         </form>
-
-        <BiometricAuth onSuccess={handleBiometricSuccess} />
 
         <div className="mt-6 text-center space-y-2">
           <Link to="/forgot-password" className="text-sm text-primary hover:underline">

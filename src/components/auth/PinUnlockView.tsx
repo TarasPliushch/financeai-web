@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { BiometricAuth } from './BiometricAuth';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
@@ -19,15 +20,20 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { user, refreshUser } = useAuth();
 
-  // Автофокус на поле вводу
+  // Визначаємо, чи це мобільний пристрій
   useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(isMobileDevice);
+    };
+    checkMobile();
     inputRef.current?.focus();
   }, []);
 
-  // Обробка фізичної клавіатури
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && pin.length === 6) {
       verifyPin();
@@ -73,6 +79,17 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     }
   };
 
+  const handleNumberClick = (num: number) => {
+    if (pin.length < 6) {
+      const newPin = pin + num.toString();
+      setPin(newPin);
+      setError('');
+      if (newPin.length === 6) {
+        setTimeout(() => verifyPin(), 100);
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
       <div className="w-full max-w-md p-6">
@@ -84,12 +101,10 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold">Введіть PIN-код</h2>
-          <p className="text-muted-foreground mt-2">
-            Для доступу до застосунку
-          </p>
+          <p className="text-muted-foreground mt-2">Для доступу до застосунку</p>
         </div>
 
-        {/* Поле для вводу PIN з клавіатури */}
+        {/* Поле для вводу PIN */}
         <input
           ref={inputRef}
           type="password"
@@ -115,64 +130,50 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           <p className="text-red-500 text-sm text-center mb-4">{error}</p>
         )}
 
-        {/* Цифрова клавіатура для мобільних пристроїв */}
-        <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+        {/* Цифрова клавіатура - ТІЛЬКИ ДЛЯ МОБІЛЬНИХ ПРИСТРОЇВ */}
+        {isMobile && (
+          <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+              <button
+                key={num}
+                onClick={() => handleNumberClick(num)}
+                className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
+              >
+                {num}
+              </button>
+            ))}
             <button
-              key={num}
               onClick={() => {
-                if (pin.length < 6) {
-                  setPin(pin + num.toString());
-                  setError('');
-                  if (pin.length + 1 === 6) {
-                    setTimeout(() => verifyPin(), 100);
-                  }
-                }
+                setPin('');
+                setError('');
+                inputRef.current?.focus();
               }}
+              className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors"
+            >
+              Очистити
+            </button>
+            <button
+              onClick={() => handleNumberClick(0)}
               className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
             >
-              {num}
+              0
             </button>
-          ))}
-          <button
-            onClick={() => {
-              setPin('');
-              setError('');
-              inputRef.current?.focus();
-            }}
-            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors"
-          >
-            Очистити
-          </button>
-          <button
-            onClick={() => {
-              if (pin.length < 6) {
-                setPin(pin + '0');
+            <button
+              onClick={() => {
+                setPin(pin.slice(0, -1));
                 setError('');
-                if (pin.length + 1 === 6) {
-                  setTimeout(() => verifyPin(), 100);
-                }
-              }
-            }}
-            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
-          >
-            0
-          </button>
-          <button
-            onClick={() => {
-              setPin(pin.slice(0, -1));
-              setError('');
-              inputRef.current?.focus();
-            }}
-            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto">
-              <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
-              <line x1="18" y1="9" x2="12" y2="15"/>
-              <line x1="12" y1="9" x2="18" y2="15"/>
-            </svg>
-          </button>
-        </div>
+                inputRef.current?.focus();
+              }}
+              className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto">
+                <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                <line x1="18" y1="9" x2="12" y2="15"/>
+                <line x1="12" y1="9" x2="18" y2="15"/>
+              </svg>
+            </button>
+          </div>
+        )}
 
         <button
           onClick={verifyPin}
@@ -181,6 +182,9 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         >
           {isLoading ? 'Перевірка...' : 'Увійти'}
         </button>
+
+        {/* Біометрична автентифікація - тільки на екрані PIN */}
+        <BiometricAuth onSuccess={onSuccess} />
 
         <button
           onClick={() => {
