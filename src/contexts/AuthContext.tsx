@@ -87,25 +87,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       console.log('🔐 Fetching current user...');
       const response = await api.getCurrentUser();
-      console.log('🔐 Response success:', response.success);
-      console.log('🔐 Response error:', response.error);
       
-      if (response.success && response.user) {
-        setUser(response.user);
-        api.setUserId(response.user.id);
-        console.log('✅ User loaded:', response.user.email);
-      } else if (response.error === 'Token expired' || response.error === 'Invalid token') {
-        // Тільки при явній помилці токена виходимо
-        console.log('🔐 Token expired/invalid, logging out');
-        logout();
+      // Детальне логування відповіді
+      console.log('🔐 Full response:', JSON.stringify(response, null, 2));
+      console.log('🔐 Response type:', typeof response);
+      console.log('🔐 Response keys:', Object.keys(response));
+      
+      // Перевіряємо різні можливі формати відповіді
+      let userData = null;
+      
+      // Варіант 1: { user: {...} }
+      if (response.user) {
+        userData = response.user;
+        console.log('🔐 Found user in response.user');
+      }
+      // Варіант 2: { success: true, user: {...} }
+      else if (response.success && response.user) {
+        userData = response.user;
+        console.log('🔐 Found user in response.user with success');
+      }
+      // Варіант 3: сама відповідь є користувачем
+      else if (response.id && response.email) {
+        userData = response;
+        console.log('🔐 Response itself is user object');
+      }
+      
+      if (userData) {
+        setUser(userData);
+        api.setUserId(userData.id);
+        console.log('✅ User loaded:', userData.email);
+        console.log('✅ User ID:', userData.id);
+        console.log('✅ PIN Hash:', userData.pinHash ? 'present' : 'not set');
       } else {
-        // При інших помилках (наприклад, мережевих) залишаємо токен
-        console.log('🔐 Server error, keeping token but user is null');
+        console.log('🔐 No user data found in response');
+        console.log('🔐 Keeping token but user is null');
         // Не виходимо з акаунту, просто немає користувача
+        // Можливо, сервер повернув помилку, але токен валідний
       }
     } catch (error) {
       console.error('🔐 Error loading user:', error);
-      // При помилці мережі, не виходимо з акаунту
       console.log('🔐 Network error, keeping token');
     }
     finally { 
@@ -119,9 +139,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const token = api.getToken();
       if (token) {
         const response = await api.getCurrentUser();
-        if (response.success && response.user) {
+        if (response.user) {
           setUser(response.user);
           console.log('✅ Дані користувача оновлено, pinHash:', response.user.pinHash ? 'є' : 'немає');
+        } else if (response.success && response.user) {
+          setUser(response.user);
         }
       }
     } catch (error) {
