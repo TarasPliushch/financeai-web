@@ -130,6 +130,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     api.setUserId(null);
     setUser(null);
     setRequiresEmailVerification(false);
+    // Очищаємо всі дані сесії
+    sessionStorage.removeItem('pinVerified');
     localStorage.removeItem('pinUnlocked');
     toast.success('Ви вийшли');
   };

@@ -66,7 +66,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       
       if (storedHash === hashedInput) {
         toast.success('PIN-код правильний');
-        localStorage.setItem('pinUnlocked', 'true');
         onSuccess();
       } else {
         toast.error('Невірний PIN-код');
@@ -157,9 +156,10 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
 
         <button
           onClick={() => {
+            // Повний вихід з акаунту
             localStorage.removeItem('authToken');
             localStorage.removeItem('userId');
-            localStorage.removeItem('pinUnlocked');
+            sessionStorage.removeItem('pinVerified');
             window.location.href = '/login';
           }}
           className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
