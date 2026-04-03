@@ -20,6 +20,21 @@ class ApiService {
       if (userId) config.headers['user-id'] = userId;
       return config;
     });
+
+    // Перехоплюємо помилки авторизації, але не виходимо при помилках мережі
+    this.api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          // Тільки при 401 помилці виходимо
+          console.log('🔐 401 Unauthorized - logging out');
+          this.setToken(null);
+          this.setUserId(null);
+          window.dispatchEvent(new Event('authError'));
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   setToken(token: string | null) {
@@ -57,9 +72,33 @@ class ApiService {
     return res.data;
   }
 
-  // Оновлення профілю - ВИКОРИСТОВУЄМО ДЛЯ PIN
   async updateProfile(data: any) {
     const res = await this.api.put('/auth/profile', data);
+    return res.data;
+  }
+
+  async verifyEmail(code: string) {
+    const res = await this.api.post('/auth/verify-email', { code });
+    return res.data;
+  }
+
+  async resendVerification() {
+    const res = await this.api.post('/auth/resend-verification', {});
+    return res.data;
+  }
+
+  async verifyTwoFactor(email: string, code: string) {
+    const res = await this.api.post('/auth/verify-2fa', { email, code });
+    return res.data;
+  }
+
+  async requestPasswordReset(email: string) {
+    const res = await this.api.post('/auth/forgot-password', { email });
+    return res.data;
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const res = await this.api.post('/auth/reset-password', { email, code, newPassword });
     return res.data;
   }
 
