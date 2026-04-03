@@ -6,19 +6,14 @@ interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
-// ТОЧНО ТАКИЙ САМИЙ МЕТОД ХЕШУВАННЯ, ЯК В iOS
-// iOS: SHA256(userId + pin) -> hex
+// ТОЙ САМИЙ МЕТОД ХЕШУВАННЯ, ЩО В iOS
 const hashPin = async (pin: string, userId: string): Promise<string> => {
-  // iOS використовує userId як є (з префіксом user_)
   const input = userId + pin;
-  console.log('🔐 iOS-style hash input:', input);
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hexHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  console.log('🔐 iOS-style hash output:', hexHash);
-  return hexHash;
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
@@ -49,7 +44,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
-      // Отримуємо актуальні дані користувача
       await refreshUser();
       
       const storedHash = user?.pinHash;
@@ -61,16 +55,13 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       }
       
       const userId = user?.id || '';
-      
-      // Хешуємо PIN тим самим методом, що в iOS
       const calculatedHash = await hashPin(pin, userId);
       
       console.log('========== PIN VERIFICATION ==========');
       console.log('User ID:', userId);
       console.log('Entered PIN:', pin);
-      console.log('Input string (userId+pin):', userId + pin);
       console.log('Calculated hash:', calculatedHash);
-      console.log('Stored hash from server:', storedHash);
+      console.log('Stored hash:', storedHash);
       console.log('Match:', calculatedHash === storedHash);
       console.log('======================================');
       
@@ -115,39 +106,24 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold">Введіть PIN-код</h2>
-          <p className="text-muted-foreground mt-2">
-            Для доступу до застосунку
-          </p>
+          <p className="text-muted-foreground mt-2">Для доступу до застосунку</p>
         </div>
 
         {renderDots()}
 
         <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button
-              key={num}
-              onClick={() => handleNumberClick(num)}
-              className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
-            >
+            <button key={num} onClick={() => handleNumberClick(num)} className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors">
               {num}
             </button>
           ))}
-          <button
-            onClick={handleClear}
-            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors"
-          >
+          <button onClick={handleClear} className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors">
             Очистити
           </button>
-          <button
-            onClick={() => handleNumberClick(0)}
-            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
-          >
+          <button onClick={() => handleNumberClick(0)} className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors">
             0
           </button>
-          <button
-            onClick={handleDelete}
-            className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
-          >
+          <button onClick={handleDelete} className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto">
               <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
               <line x1="18" y1="9" x2="12" y2="15"/>
@@ -156,22 +132,11 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           </button>
         </div>
 
-        <button
-          onClick={verifyPin}
-          disabled={pin.length !== 6 || isLoading}
-          className="mt-8 w-full py-3 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all"
-        >
+        <button onClick={verifyPin} disabled={pin.length !== 6 || isLoading} className="mt-8 w-full py-3 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all">
           {isLoading ? 'Перевірка...' : 'Увійти'}
         </button>
 
-        <button
-          onClick={() => {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userId');
-            window.location.href = '/login';
-          }}
-          className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <button onClick={() => { localStorage.removeItem('authToken'); localStorage.removeItem('userId'); window.location.href = '/login'; }} className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           Вийти з акаунту
         </button>
       </div>
