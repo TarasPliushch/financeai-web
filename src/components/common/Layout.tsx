@@ -3,13 +3,13 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
+// Гарні іконки для навігації
 const navigation = [
-  { name: 'Фінанси', path: '/finances', icon: '💰' },
-  { name: 'Цілі', path: '/goals', icon: '🎯' },
-  { name: 'Покупки', path: '/shopping', icon: '🛒' },
-  { name: 'Чат', path: '/chat', icon: '💬' },
-  { name: 'Сповіщення', path: '/notifications', icon: '🔔' },
-  { name: 'Профіль', path: '/profile', icon: '👤' },
+  { name: 'Фінанси', path: '/finances', icon: '💰', iconActive: '💎' },
+  { name: 'Цілі', path: '/goals', icon: '🎯', iconActive: '🏆' },
+  { name: 'Покупки', path: '/shopping', icon: '🛒', iconActive: '🛍️' },
+  { name: 'Чат', path: '/chat', icon: '💬', iconActive: '💭' },
+  { name: 'Сповіщення', path: '/notifications', icon: '🔔', iconActive: '🔔' },
 ];
 
 export const Layout: React.FC = () => {
@@ -23,15 +23,12 @@ export const Layout: React.FC = () => {
   const [avatarImageUrl, setAvatarImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // Визначаємо, як відображати аватар в бічній панелі
     const avatar = user?.avatarEmoji;
     if (avatar) {
-      // Якщо це base64 зображення або URL
       if (avatar.startsWith('data:image') || avatar.startsWith('http')) {
         setAvatarImageUrl(avatar);
         setAvatarDisplay('📷');
       } else {
-        // Якщо це емодзі
         setAvatarImageUrl(null);
         setAvatarDisplay(avatar);
       }
@@ -42,20 +39,13 @@ export const Layout: React.FC = () => {
   }, [user?.avatarEmoji]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
+  const goToProfile = () => { navigate('/profile'); setSidebarOpen(false); };
 
-  // Функція для отримання короткого імені або email
   const getDisplayName = () => {
     if (user?.name && user.name.length > 15) {
       return user.name.substring(0, 15) + '...';
     }
     return user?.name || 'Користувач';
-  };
-
-  const getDisplayEmail = () => {
-    if (user?.email && user.email.length > 20) {
-      return user.email.substring(0, 20) + '...';
-    }
-    return user?.email || '';
   };
 
   return (
@@ -70,103 +60,117 @@ export const Layout: React.FC = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-secondary/80 backdrop-blur-lg transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 w-72 transform bg-gradient-to-b from-secondary/95 to-secondary/80 backdrop-blur-xl transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center justify-center border-b border-border">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-              FinanceAI
-            </h1>
+          <div className="flex h-20 items-center justify-center border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center shadow-lg">
+                <span className="text-2xl">🧠</span>
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+                FinanceAI
+              </h1>
+            </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 p-4">
+          <nav className="flex-1 px-4 py-6 space-y-2">
             {navigation.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                  `flex items-center gap-4 rounded-xl px-4 py-3 text-base font-medium transition-all duration-200 group ${
                     isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-foreground hover:bg-secondary'
+                      ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-primary shadow-inner'
+                      : 'text-foreground/70 hover:bg-white/5 hover:text-foreground'
                   }`
                 }
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="text-xl">{item.icon}</span>
+                <span className="text-2xl group-hover:scale-110 transition-transform">
+                  {({ isActive }) => isActive ? item.iconActive : item.icon}
+                </span>
                 <span>{item.name}</span>
+                {({ isActive }) => isActive && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500" />
+                )}
               </NavLink>
             ))}
           </nav>
 
-          {/* User info */}
-          <div className="border-t border-border p-4">
-            <div className="flex items-center gap-3">
-              {/* Avatar - виправлено! */}
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 overflow-hidden flex-shrink-0">
+          {/* User Section - Avatar + Theme + Logout */}
+          <div className="border-t border-white/10 p-4 space-y-3">
+            {/* Avatar Button - перехід в профіль */}
+            <button
+              onClick={goToProfile}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 group"
+            >
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center overflow-hidden shadow-lg">
                 {avatarImageUrl ? (
-                  <img 
-                    src={avatarImageUrl} 
-                    alt="Avatar" 
-                    className="w-full h-full object-cover"
-                    onError={() => {
-                      // Якщо помилка завантаження - показуємо емодзі
-                      setAvatarImageUrl(null);
-                      setAvatarDisplay('👤');
-                    }}
-                  />
+                  <img src={avatarImageUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-xl">{avatarDisplay}</span>
+                  <span className="text-2xl">{avatarDisplay}</span>
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{getDisplayName()}</p>
-                <p className="text-xs text-muted-foreground truncate">{getDisplayEmail()}</p>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-semibold">{getDisplayName()}</p>
+                <p className="text-xs text-muted-foreground">Переглянути профіль</p>
               </div>
-            </div>
+              <span className="text-muted-foreground group-hover:translate-x-1 transition-transform">→</span>
+            </button>
             
             {/* Theme toggle */}
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Тема</span>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-white/5">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎨</span>
+                <span className="text-sm text-muted-foreground">Тема</span>
+              </div>
               <select
                 value={theme}
                 onChange={(e) => setTheme(e.target.value as any)}
-                className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                className="bg-transparent border-none text-sm focus:outline-none cursor-pointer"
               >
-                <option value="system">Системна</option>
-                <option value="light">Світла</option>
-                <option value="dark">Темна</option>
+                <option value="system">🌓 Системна</option>
+                <option value="light">☀️ Світла</option>
+                <option value="dark">🌙 Темна</option>
               </select>
             </div>
             
             {/* Logout button */}
             <button
               onClick={handleLogout}
-              className="mt-3 w-full rounded-lg bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20"
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-all duration-200 text-red-400"
             >
-              Вийти
+              <span className="text-xl">🚪</span>
+              <span className="text-sm font-medium">Вийти</span>
             </button>
           </div>
         </div>
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         {/* Mobile header */}
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-lg px-4 lg:hidden">
+        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-white/10 bg-background/80 backdrop-blur-lg px-4 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="rounded-lg p-2 hover:bg-secondary"
+            className="rounded-xl p-2 hover:bg-white/10 transition-colors"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <h2 className="text-lg font-semibold">FinanceAI</h2>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center">
+              <span className="text-sm">🧠</span>
+            </div>
+            <h2 className="text-lg font-semibold">FinanceAI</h2>
+          </div>
           <div className="w-8" />
         </header>
 
