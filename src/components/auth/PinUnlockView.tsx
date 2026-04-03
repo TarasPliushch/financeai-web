@@ -1,24 +1,25 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
+// Той самий метод хешування, що і в iOS додатку
+const hashPin = async (pin: string, userId: string): Promise<string> => {
+  const input = userId + pin;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { user, refreshUser } = useAuth();
-
-  const hashPin = async (pinCode: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(pinCode + (user?.id || 'default'));
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  };
 
   const handleNumberClick = (num: number) => {
     if (pin.length < 6) {
@@ -54,7 +55,14 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         return;
       }
       
-      const hashedInput = await hashPin(pin);
+      // Використовуємо той самий метод хешування, що в iOS
+      const hashedInput = await hashPin(pin, user?.id || '');
+      
+      console.log('🔐 Перевірка PIN:');
+      console.log('  Введений PIN:', pin);
+      console.log('  User ID:', user?.id);
+      console.log('  Хеш введеного:', hashedInput);
+      console.log('  Хеш з сервера:', storedHash);
       
       if (storedHash === hashedInput) {
         toast.success('PIN-код правильний');

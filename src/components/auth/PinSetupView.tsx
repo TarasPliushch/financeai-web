@@ -8,20 +8,22 @@ interface PinSetupViewProps {
   mode?: 'setup' | 'change';
 }
 
+// Той самий метод хешування, що і в iOS додатку
+const hashPin = async (pin: string, userId: string): Promise<string> => {
+  const input = userId + pin;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 export const PinSetupView: React.FC<PinSetupViewProps> = ({ onSuccess, onCancel, mode = 'setup' }) => {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState<'enter' | 'confirm'>('enter');
   const [isLoading, setIsLoading] = useState(false);
   const { user, updateProfile, refreshUser } = useAuth();
-
-  const hashPin = async (pinCode: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(pinCode + (user?.id || 'default'));
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  };
 
   const handleNumberClick = (num: number) => {
     if (step === 'enter' && pin.length < 6) {
@@ -63,7 +65,13 @@ export const PinSetupView: React.FC<PinSetupViewProps> = ({ onSuccess, onCancel,
         setStep('enter');
       } else {
         setIsLoading(true);
-        const hashedPin = await hashPin(pin);
+        // Використовуємо той самий метод хешування, що в iOS
+        const hashedPin = await hashPin(pin, user?.id || '');
+        console.log('🔐 Збереження PIN:');
+        console.log('  PIN:', pin);
+        console.log('  User ID:', user?.id);
+        console.log('  Хеш:', hashedPin);
+        
         const success = await updateProfile({ pinHash: hashedPin });
         if (success) {
           await refreshUser();

@@ -52,18 +52,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const refreshUser = async () => {
-    console.log("🔄 Оновлення даних користувача...");
+    console.log('🔄 Оновлення даних користувача...');
     try {
       const token = api.getToken();
       if (token) {
         const response = await api.getCurrentUser();
         if (response.success && response.user) {
           setUser(response.user);
-          console.log("✅ Дані користувача оновлено");
+          console.log('✅ Дані користувача оновлено, pinHash:', response.user.pinHash ? 'є' : 'немає');
         }
       }
     } catch (error) {
-      console.error("❌ Помилка оновлення:", error);
+      console.error('❌ Помилка оновлення:', error);
     }
   };
 
@@ -130,6 +130,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     api.setUserId(null);
     setUser(null);
     setRequiresEmailVerification(false);
+    localStorage.removeItem('pinUnlocked');
     toast.success('Ви вийшли');
   };
 
