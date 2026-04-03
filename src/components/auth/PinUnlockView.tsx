@@ -24,7 +24,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const { user, refreshUser } = useAuth();
 
-  // Визначаємо, чи це мобільний пристрій
   useEffect(() => {
     const checkMobile = () => {
       const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -41,13 +40,15 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   };
 
   const verifyPin = async () => {
+    // Очищаємо попередню помилку
+    setError('');
+    
     if (pin.length !== 6) {
       setError('Введіть 6-значний PIN-код');
       return;
     }
 
     setIsLoading(true);
-    setError('');
     
     try {
       await refreshUser();
@@ -64,7 +65,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       const calculatedHash = await hashPin(pin, userId);
       
       if (calculatedHash === storedHash) {
-        toast.success('PIN-код правильний');
+        // Успішний вхід - без зайвих повідомлень
         onSuccess();
       } else {
         setError('Невірний PIN-код');
@@ -84,10 +85,20 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       const newPin = pin + num.toString();
       setPin(newPin);
       setError('');
-      if (newPin.length === 6) {
-        setTimeout(() => verifyPin(), 100);
-      }
+      // Не викликаємо verifyPin автоматично, чекаємо кнопку Увійти
     }
+  };
+
+  const handleClear = () => {
+    setPin('');
+    setError('');
+    inputRef.current?.focus();
+  };
+
+  const handleDelete = () => {
+    setPin(pin.slice(0, -1));
+    setError('');
+    inputRef.current?.focus();
   };
 
   return (
@@ -116,9 +127,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
             const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
             setPin(val);
             setError('');
-            if (val.length === 6) {
-              setTimeout(() => verifyPin(), 100);
-            }
           }}
           onKeyDown={handleKeyDown}
           placeholder="••••••"
@@ -132,7 +140,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
 
         {/* Цифрова клавіатура - ТІЛЬКИ ДЛЯ МОБІЛЬНИХ ПРИСТРОЇВ */}
         {isMobile && (
-          <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
+          <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
               <button
                 key={num}
@@ -143,11 +151,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
               </button>
             ))}
             <button
-              onClick={() => {
-                setPin('');
-                setError('');
-                inputRef.current?.focus();
-              }}
+              onClick={handleClear}
               className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors"
             >
               Очистити
@@ -159,11 +163,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
               0
             </button>
             <button
-              onClick={() => {
-                setPin(pin.slice(0, -1));
-                setError('');
-                inputRef.current?.focus();
-              }}
+              onClick={handleDelete}
               className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto">
@@ -183,7 +183,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           {isLoading ? 'Перевірка...' : 'Увійти'}
         </button>
 
-        {/* Біометрична автентифікація - тільки на екрані PIN */}
+        {/* Біометрична автентифікація */}
         <BiometricAuth onSuccess={onSuccess} />
 
         <button
