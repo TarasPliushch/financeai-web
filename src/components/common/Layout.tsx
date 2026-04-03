@@ -56,14 +56,14 @@ export const Layout: React.FC = () => {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-background border-r border-white/10 transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-background border-r border-border transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center justify-center border-b border-white/10">
+          <div className="flex h-16 items-center justify-center border-b border-border">
             <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">FinanceAI</h1>
           </div>
 
-          {/* Navigation - без іконок */}
+          {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1">
             {navigation.map((item) => (
               <NavLink
@@ -73,7 +73,7 @@ export const Layout: React.FC = () => {
                   `block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                   }`
                 }
                 onClick={() => setSidebarOpen(false)}
@@ -84,10 +84,10 @@ export const Layout: React.FC = () => {
           </nav>
 
           {/* User section */}
-          <div className="border-t border-white/10 p-3 space-y-3">
+          <div className="border-t border-border p-3 space-y-3">
             <button
               onClick={goToProfile}
-              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center overflow-hidden">
                 {avatarImageUrl ? (
@@ -108,7 +108,7 @@ export const Layout: React.FC = () => {
               <select
                 value={theme}
                 onChange={(e) => setTheme(e.target.value as any)}
-                className="bg-transparent border border-white/20 rounded-lg px-2 py-1 text-sm focus:outline-none"
+                className="bg-transparent border border-border rounded-lg px-2 py-1 text-sm focus:outline-none"
               >
                 <option value="system">Системна</option>
                 <option value="light">Світла</option>
@@ -119,7 +119,7 @@ export const Layout: React.FC = () => {
             {/* Logout button */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
             >
               <span className="text-lg">🚪</span>
               <span className="text-sm">Вийти</span>
@@ -129,10 +129,10 @@ export const Layout: React.FC = () => {
       </aside>
 
       {/* Main content */}
-      <div className={`lg:pl-64 ${isChatPage ? 'p-0' : 'p-4 lg:p-6'}`}>
+      <div className="lg:pl-64">
         {/* Mobile header */}
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-white/10 bg-background/80 backdrop-blur-lg px-4 lg:hidden">
-          <button onClick={() => setSidebarOpen(true)} className="rounded-lg p-2 hover:bg-white/10">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/80 backdrop-blur-lg px-4 lg:hidden">
+          <button onClick={() => setSidebarOpen(true)} className="rounded-lg p-2 hover:bg-secondary">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -142,7 +142,7 @@ export const Layout: React.FC = () => {
         </header>
 
         {/* Page content */}
-        <main className={isChatPage ? 'h-[calc(100vh-56px)]' : ''}>
+        <main className={isChatPage ? 'h-[calc(100vh-56px)]' : 'p-4 lg:p-6'}>
           <Outlet />
         </main>
       </div>
