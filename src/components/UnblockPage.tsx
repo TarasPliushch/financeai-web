@@ -17,7 +17,6 @@ export const UnblockPage: React.FC = () => {
       setStatus('error');
       return;
     }
-    
     checkStatus();
   }, [token]);
 
@@ -46,7 +45,7 @@ export const UnblockPage: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        toast.success('Акаунт розблоковано! Тепер ви можете увійти.');
+        toast.success('Акаунт розблоковано!');
         setStatus('success');
         setTimeout(() => navigate('/login'), 2000);
       } else {
