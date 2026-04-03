@@ -130,26 +130,73 @@ class ApiService {
   }
 
   // ===========================================
-  // SHOPPING LISTS - відповідно до вашого сервера
-  // Ваш сервер використовує /shopping/lists (як у коді server.js)
+  // SHOPPING LISTS - виправлено для сервера
   // ===========================================
+  
+  // Отримати всі списки
   async getShoppingLists() {
     const res = await this.api.get('/shopping/lists');
     return res.data;
   }
 
+  // Створити список (без товарів)
   async createShoppingList(data: any) {
-    const res = await this.api.post('/shopping/lists', data);
+    // Відправляємо тільки основні дані списку, без items
+    const payload = {
+      name: data.name,
+      reminderDate: data.reminderDate || null,
+      reminderLeadMinutes: data.reminderLeadMinutes || 30
+    };
+    const res = await this.api.post('/shopping/lists', payload);
     return res.data;
   }
 
+  // Оновити список (тільки основні дані)
   async updateShoppingList(id: string, data: any) {
-    const res = await this.api.put(`/shopping/lists/${id}`, data);
+    const payload = {
+      name: data.name,
+      reminderDate: data.reminderDate || null,
+      reminderLeadMinutes: data.reminderLeadMinutes || 30
+    };
+    const res = await this.api.put(`/shopping/lists/${id}`, payload);
     return res.data;
   }
 
+  // Видалити список
   async deleteShoppingList(id: string) {
     const res = await this.api.delete(`/shopping/lists/${id}`);
+    return res.data;
+  }
+
+  // ===========================================
+  // ОПЕРАЦІЇ З ТОВАРАМИ
+  // ===========================================
+  
+  // Додати товар до списку
+  async addShoppingItem(listId: string, data: any) {
+    const payload = {
+      name: data.name,
+      quantity: data.quantity || '',
+      isChecked: data.isCompleted || false
+    };
+    const res = await this.api.post(`/shopping/lists/${listId}/items`, payload);
+    return res.data;
+  }
+
+  // Оновити товар
+  async updateShoppingItem(itemId: string, data: any) {
+    const payload = {
+      name: data.name,
+      quantity: data.quantity || '',
+      isChecked: data.isCompleted || false
+    };
+    const res = await this.api.put(`/shopping/items/${itemId}`, payload);
+    return res.data;
+  }
+
+  // Видалити товар
+  async deleteShoppingItem(itemId: string) {
+    const res = await this.api.delete(`/shopping/items/${itemId}`);
     return res.data;
   }
 

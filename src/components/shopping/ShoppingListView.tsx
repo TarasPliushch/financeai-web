@@ -25,18 +25,17 @@ export const ShoppingListView: React.FC = () => {
         const parsedLists = response.lists.map((l: any) => ({
           id: l.id,
           name: l.name,
-          // Підтримка обох форматів: isCompleted та isChecked
           items: (l.items || []).map((i: any) => ({
             id: i.id,
             name: i.name,
             quantity: i.quantity || '',
-            isCompleted: i.isCompleted === true || i.isChecked === true
+            isCompleted: i.isChecked === true || i.isCompleted === true
           })),
           reminderDate: l.reminderDate ? new Date(l.reminderDate) : undefined,
           reminderLeadMinutes: l.reminderLeadMinutes || 30,
           createdAt: new Date(l.createdAt),
           serverId: l.id,
-          completedCount: (l.items || []).filter((i: any) => i.isCompleted === true || i.isChecked === true).length,
+          completedCount: (l.items || []).filter((i: any) => i.isChecked === true || i.isCompleted === true).length,
           totalCount: (l.items || []).length,
         }));
         setLists(parsedLists);
@@ -61,7 +60,6 @@ export const ShoppingListView: React.FC = () => {
         name: name.trim(),
         reminderDate: reminderDate ? reminderDate.toISOString() : null,
         reminderLeadMinutes,
-        items: []
       });
       
       if (response.success && response.list) {
@@ -91,20 +89,12 @@ export const ShoppingListView: React.FC = () => {
 
   const handleUpdateList = async (updatedList: ShoppingList) => {
     try {
-      // ВАЖЛИВО: відправляємо isCompleted як isChecked для сервера
-      const updateData = {
+      // Оновлюємо тільки основну інформацію списку
+      const response = await api.updateShoppingList(updatedList.serverId || updatedList.id, {
         name: updatedList.name,
         reminderDate: updatedList.reminderDate?.toISOString() || null,
         reminderLeadMinutes: updatedList.reminderLeadMinutes,
-        items: updatedList.items.map(i => ({
-          id: i.id,
-          name: i.name,
-          quantity: i.quantity,
-          isChecked: i.isCompleted  // <- isChecked для сервера
-        }))
-      };
-      
-      const response = await api.updateShoppingList(updatedList.serverId || updatedList.id, updateData);
+      });
       
       if (response.success) {
         setLists(lists.map(l => l.id === updatedList.id ? updatedList : l));
@@ -126,6 +116,57 @@ export const ShoppingListView: React.FC = () => {
       toast.success('Список видалено');
     } catch (error) {
       console.error('❌ Помилка видалення:', error);
+      toast.error('Помилка видалення');
+    }
+  };
+
+  // Функції для роботи з товарами
+  const handleAddItem = async (listId: string, item: ShoppingItem) => {
+    try {
+      const response = await api.addShoppingItem(listId, {
+        name: item.name,
+        quantity: item.quantity,
+        isCompleted: item.isCompleted
+      });
+      if (response.success) {
+        toast.success('Товар додано');
+        await loadLists();
+        return true;
+      }
+      toast.error(response?.error || 'Помилка додавання товару');
+      return false;
+    } catch (error) {
+      console.error('❌ Помилка додавання товару:', error);
+      toast.error('Помилка додавання товару');
+      return false;
+    }
+  };
+
+  const handleToggleItem = async (itemId: string, isCompleted: boolean) => {
+    try {
+      const response = await api.updateShoppingItem(itemId, { isCompleted });
+      if (response.success) {
+        await loadLists();
+      } else {
+        toast.error(response?.error || 'Помилка оновлення');
+      }
+    } catch (error) {
+      console.error('❌ Помилка оновлення товару:', error);
+      toast.error('Помилка оновлення');
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      const response = await api.deleteShoppingItem(itemId);
+      if (response.success) {
+        toast.success('Товар видалено');
+        await loadLists();
+      } else {
+        toast.error(response?.error || 'Помилка видалення');
+      }
+    } catch (error) {
+      console.error('❌ Помилка видалення товару:', error);
       toast.error('Помилка видалення');
     }
   };
@@ -215,12 +256,17 @@ export const ShoppingListView: React.FC = () => {
           list={selectedList}
           onClose={() => setSelectedList(null)}
           onUpdate={handleUpdateList}
+          onAddItem={handleAddItem}
+          onToggleItem={handleToggleItem}
+          onDeleteItem={handleDeleteItem}
+          refreshLists={loadLists}
         />
       )}
     </div>
   );
 };
 
+// AddListModal (без змін)
 const AddListModal: React.FC<{ onClose: () => void; onSave: (name: string, date: Date | null, minutes: number) => Promise<boolean> }> = ({ onClose, onSave }) => {
   const [name, setName] = useState('');
   const [hasReminder, setHasReminder] = useState(false);
@@ -322,35 +368,57 @@ const AddListModal: React.FC<{ onClose: () => void; onSave: (name: string, date:
   );
 };
 
-const ListDetailModal: React.FC<{ list: ShoppingList; onClose: () => void; onUpdate: (list: ShoppingList) => void }> = ({ list, onClose, onUpdate }) => {
+// ListDetailModal - оновлена версія з підтримкою товарів
+interface ListDetailModalProps {
+  list: ShoppingList;
+  onClose: () => void;
+  onUpdate: (list: ShoppingList) => void;
+  onAddItem: (listId: string, item: ShoppingItem) => Promise<boolean>;
+  onToggleItem: (itemId: string, isCompleted: boolean) => Promise<void>;
+  onDeleteItem: (itemId: string) => Promise<void>;
+  refreshLists: () => Promise<void>;
+}
+
+const ListDetailModal: React.FC<ListDetailModalProps> = ({ 
+  list, onClose, onUpdate, onAddItem, onToggleItem, onDeleteItem, refreshLists 
+}) => {
   const [items, setItems] = useState<ShoppingItem[]>(list.items);
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
-  const handleToggle = (item: ShoppingItem) => {
-    const updated = items.map(i => i.id === item.id ? { ...i, isCompleted: !i.isCompleted } : i);
-    setItems(updated);
-    onUpdate({ ...list, items: updated, completedCount: updated.filter(i => i.isCompleted).length });
+  const handleToggle = async (item: ShoppingItem) => {
+    await onToggleItem(item.id, !item.isCompleted);
+    await refreshLists();
   };
 
-  const handleAdd = () => {
-    if (!newName.trim()) return;
-    const newItem: ShoppingItem = { id: Date.now().toString(), name: newName.trim(), quantity: newQty.trim(), isCompleted: false };
-    const updated = [...items, newItem];
-    setItems(updated);
-    setNewName('');
-    setNewQty('');
-    onUpdate({ ...list, items: updated, completedCount: updated.filter(i => i.isCompleted).length, totalCount: updated.length });
+  const handleAdd = async () => {
+    if (!newName.trim() || isAdding) return;
+    setIsAdding(true);
+    const newItem: ShoppingItem = { 
+      id: Date.now().toString(), 
+      name: newName.trim(), 
+      quantity: newQty.trim(), 
+      isCompleted: false 
+    };
+    const success = await onAddItem(list.serverId || list.id, newItem);
+    if (success) {
+      setNewName('');
+      setNewQty('');
+      await refreshLists();
+    }
+    setIsAdding(false);
   };
 
-  const handleDelete = (item: ShoppingItem) => {
-    const updated = items.filter(i => i.id !== item.id);
-    setItems(updated);
-    onUpdate({ ...list, items: updated, completedCount: updated.filter(i => i.isCompleted).length, totalCount: updated.length });
+  const handleDelete = async (item: ShoppingItem) => {
+    if (confirm(`Видалити "${item.name}"?`)) {
+      await onDeleteItem(item.id);
+      await refreshLists();
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && newName.trim()) handleAdd();
+    if (e.key === 'Enter' && newName.trim() && !isAdding) handleAdd();
   };
 
   return (
@@ -406,6 +474,7 @@ const ListDetailModal: React.FC<{ list: ShoppingList; onClose: () => void; onUpd
               onKeyPress={handleKeyPress}
               placeholder="Назва товару"
               className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+              disabled={isAdding}
             />
             <input
               type="text"
@@ -413,13 +482,14 @@ const ListDetailModal: React.FC<{ list: ShoppingList; onClose: () => void; onUpd
               onChange={(e) => setNewQty(e.target.value)}
               placeholder="Кількість"
               className="w-24 px-4 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+              disabled={isAdding}
             />
             <button
               onClick={handleAdd}
-              disabled={!newName.trim()}
+              disabled={!newName.trim() || isAdding}
               className="px-5 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              Додати
+              {isAdding ? '...' : 'Додати'}
             </button>
           </div>
         </div>
