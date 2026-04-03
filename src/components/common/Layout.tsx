@@ -58,8 +58,8 @@ export const Layout: React.FC = () => {
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-background border-r border-border transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center justify-center border-b border-border">
+          {/* Logo - без нижньої лінії */}
+          <div className="flex h-16 items-center justify-center">
             <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">FinanceAI</h1>
           </div>
 
@@ -83,7 +83,7 @@ export const Layout: React.FC = () => {
             ))}
           </nav>
 
-          {/* User section */}
+          {/* User section - без теми знизу */}
           <div className="border-t border-border p-3 space-y-3">
             <button
               onClick={goToProfile}
@@ -102,26 +102,11 @@ export const Layout: React.FC = () => {
               </div>
             </button>
             
-            {/* Theme toggle */}
-            <div className="flex items-center justify-between px-2 py-1.5">
-              <span className="text-sm text-muted-foreground">Тема</span>
-              <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as any)}
-                className="bg-transparent border border-border rounded-lg px-2 py-1 text-sm focus:outline-none"
-              >
-                <option value="system">Системна</option>
-                <option value="light">Світла</option>
-                <option value="dark">Темна</option>
-              </select>
-            </div>
-            
-            {/* Logout button */}
+            {/* Logout button - без іконки дверей */}
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
             >
-              <span className="text-lg">🚪</span>
               <span className="text-sm">Вийти</span>
             </button>
           </div>
