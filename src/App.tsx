@@ -32,7 +32,7 @@ const AppContent: React.FC = () => {
   }, [isDark]);
   return (
     <>
-      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { background: isDark ? '#1f2937' : '#fff', color: isDark ? '#fff' : '#000' } }} />
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginView />} />
