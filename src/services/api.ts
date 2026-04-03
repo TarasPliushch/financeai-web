@@ -41,7 +41,7 @@ class ApiService {
     return localStorage.getItem('userId');
   }
 
-  // Auth
+  // ==================== AUTH ====================
   async register(email: string, password: string, name: string) {
     const res = await this.api.post('/auth/register', { email, password, name });
     return res.data;
@@ -87,7 +87,7 @@ class ApiService {
     return res.data;
   }
 
-  // Expenses
+  // ==================== EXPENSES ====================
   async getExpenses() {
     const res = await this.api.get('/expenses');
     return res.data;
@@ -108,7 +108,7 @@ class ApiService {
     return res.data;
   }
 
-  // Goals
+  // ==================== GOALS ====================
   async getGoals() {
     const res = await this.api.get('/goals');
     return res.data;
@@ -129,78 +129,43 @@ class ApiService {
     return res.data;
   }
 
-  // ===========================================
-  // SHOPPING LISTS - виправлено для сервера
-  // ===========================================
-  
-  // Отримати всі списки
+  // ==================== SHOPPING LISTS ====================
   async getShoppingLists() {
     const res = await this.api.get('/shopping/lists');
     return res.data;
   }
 
-  // Створити список (без товарів)
   async createShoppingList(data: any) {
-    // Відправляємо тільки основні дані списку, без items
-    const payload = {
-      name: data.name,
-      reminderDate: data.reminderDate || null,
-      reminderLeadMinutes: data.reminderLeadMinutes || 30
-    };
-    const res = await this.api.post('/shopping/lists', payload);
+    const res = await this.api.post('/shopping/lists', data);
     return res.data;
   }
 
-  // Оновити список (тільки основні дані)
   async updateShoppingList(id: string, data: any) {
-    const payload = {
-      name: data.name,
-      reminderDate: data.reminderDate || null,
-      reminderLeadMinutes: data.reminderLeadMinutes || 30
-    };
-    const res = await this.api.put(`/shopping/lists/${id}`, payload);
+    const res = await this.api.put(`/shopping/lists/${id}`, data);
     return res.data;
   }
 
-  // Видалити список
   async deleteShoppingList(id: string) {
     const res = await this.api.delete(`/shopping/lists/${id}`);
     return res.data;
   }
 
-  // ===========================================
-  // ОПЕРАЦІЇ З ТОВАРАМИ
-  // ===========================================
-  
-  // Додати товар до списку
   async addShoppingItem(listId: string, data: any) {
-    const payload = {
-      name: data.name,
-      quantity: data.quantity || '',
-      isChecked: data.isCompleted || false
-    };
-    const res = await this.api.post(`/shopping/lists/${listId}/items`, payload);
+    const res = await this.api.post(`/shopping/lists/${listId}/items`, data);
     return res.data;
   }
 
-  // Оновити товар
   async updateShoppingItem(itemId: string, data: any) {
-    const payload = {
-      name: data.name,
-      quantity: data.quantity || '',
-      isChecked: data.isCompleted || false
-    };
-    const res = await this.api.put(`/shopping/items/${itemId}`, payload);
+    const res = await this.api.put(`/shopping/items/${itemId}`, data);
     return res.data;
   }
 
-  // Видалити товар
   async deleteShoppingItem(itemId: string) {
     const res = await this.api.delete(`/shopping/items/${itemId}`);
     return res.data;
   }
 
-  // Chat
+  // ==================== CHAT ====================
   async getChatSessions() {
     const res = await this.api.get('/chat/sessions');
     return res.data;
@@ -231,7 +196,7 @@ class ApiService {
     return res.data;
   }
 
-  // Notifications
+  // ==================== NOTIFICATIONS ====================
   async getNotifications() {
     const res = await this.api.get('/notifications');
     return res.data;

@@ -1,14 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChatMessage, ChatSession } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 
+// DeepSeek API Configuration
 const DEEPSEEK_API_KEY = 'sk-d07874cdcc1340ebabff7785d0d0d04b';
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
+interface ChatMessage {
+  id: string;
+  content: string;
+  isUser: boolean;
+  timestamp: Date;
+}
+
+interface ChatSession {
+  id: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastMessage?: string;
+  messageCount?: number;
+}
+
 export const ChatView: React.FC = () => {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -27,10 +45,10 @@ export const ChatView: React.FC = () => {
     try {
       const response = await api.getChatSessions();
       if (response.success && response.sessions) {
-        const parsed = response.sessions.map((s: any) => ({ ...s, createdAt: new Date(s.createdAt), updatedAt: new Date(s.updatedAt), messages: [] }));
+        const parsed = response.sessions.map((s: any) => ({ ...s, createdAt: new Date(s.createdAt), updatedAt: new Date(s.updatedAt) }));
         setSessions(parsed);
         if (parsed.length > 0 && !currentSessionId) setCurrentSessionId(parsed[0].id);
-        else if (parsed.length === 0) createNewSession();
+        else if (parsed.length === 0) await createNewSession();
       }
     } catch (error) { console.error(error); }
   };
@@ -48,7 +66,7 @@ export const ChatView: React.FC = () => {
     try {
       const response = await api.createChatSession(`Чат ${new Date().toLocaleDateString()}`);
       if (response.success && response.session) {
-        const newSession = { ...response.session, createdAt: new Date(response.session.createdAt), updatedAt: new Date(response.session.updatedAt), messages: [] };
+        const newSession = { ...response.session, createdAt: new Date(response.session.createdAt), updatedAt: new Date(response.session.updatedAt) };
         setSessions([newSession, ...sessions]);
         setCurrentSessionId(newSession.id);
         setShowSessions(false);
@@ -56,12 +74,12 @@ export const ChatView: React.FC = () => {
     } catch (error) { toast.error('Помилка створення чату'); }
   };
 
-  // Функція для виконання дій з сервером
+  // ==================== ОСНОВНА ФУНКЦІЯ ВИКОНАННЯ ДІЙ ====================
   const executeAction = async (action: string, params: any): Promise<string | null> => {
+    console.log('🚀 Виконую дію:', action, params);
+    
     try {
-      console.log('📡 Executing action:', action, params);
-      
-      // Додати витрату
+      // ДОДАТИ ВИТРАТУ
       if (action === 'ADD_EXPENSE') {
         const expenseData = {
           title: params.title,
@@ -70,18 +88,18 @@ export const ChatView: React.FC = () => {
           date: new Date().toISOString(),
           notes: params.notes || '',
           isIncome: false,
-          currency: '₴'
+          currency: user?.currency || '₴'
         };
-        console.log('📝 Creating expense:', expenseData);
+        console.log('📤 Надсилаємо витрату:', expenseData);
         const response = await api.createExpense(expenseData);
-        console.log('✅ Expense created:', response);
+        console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `✅ Витрату "${params.title}" на ${params.amount}₴ додано до розділу Фінанси!`;
+          return `✅ Витрату "${params.title}" на ${params.amount}${user?.currency || '₴'} додано до розділу Фінанси!`;
         }
-        return `❌ Помилка додавання витрати: ${response.error || 'невідома помилка'}`;
+        return `❌ Помилка: ${response.error || 'невідома помилка'}`;
       }
       
-      // Додати дохід
+      // ДОДАТИ ДОХІД
       if (action === 'ADD_INCOME') {
         const incomeData = {
           title: params.title,
@@ -90,18 +108,18 @@ export const ChatView: React.FC = () => {
           date: new Date().toISOString(),
           notes: params.notes || '',
           isIncome: true,
-          currency: '₴'
+          currency: user?.currency || '₴'
         };
-        console.log('📝 Creating income:', incomeData);
+        console.log('📤 Надсилаємо дохід:', incomeData);
         const response = await api.createExpense(incomeData);
-        console.log('✅ Income created:', response);
+        console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `✅ Дохід "${params.title}" на ${params.amount}₴ додано до розділу Фінанси!`;
+          return `✅ Дохід "${params.title}" на ${params.amount}${user?.currency || '₴'} додано до розділу Фінанси!`;
         }
-        return `❌ Помилка додавання доходу: ${response.error || 'невідома помилка'}`;
+        return `❌ Помилка: ${response.error || 'невідома помилка'}`;
       }
       
-      // Додати ціль
+      // ДОДАТИ ЦІЛЬ
       if (action === 'ADD_GOAL') {
         const goalData = {
           name: params.name,
@@ -109,148 +127,131 @@ export const ChatView: React.FC = () => {
           currentAmount: 0,
           imageEmoji: params.emoji || '🎯',
           notes: params.notes || '',
-          deadline: params.deadline || null,
-          currency: '₴'
+          deadline: null,
+          currency: user?.currency || '₴'
         };
-        console.log('📝 Creating goal:', goalData);
+        console.log('📤 Надсилаємо ціль:', goalData);
         const response = await api.createGoal(goalData);
-        console.log('✅ Goal created:', response);
+        console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `✅ Ціль "${params.name}" на ${params.amount}₴ додано до розділу Цілі!`;
+          return `✅ Ціль "${params.name}" на ${params.amount}${user?.currency || '₴'} додано до розділу Цілі!`;
         }
-        return `❌ Помилка додавання цілі: ${response.error || 'невідома помилка'}`;
+        return `❌ Помилка: ${response.error || 'невідома помилка'}`;
       }
       
-      // Створити список покупок
+      // СТВОРИТИ СПИСОК ПОКУПОК
       if (action === 'CREATE_SHOPPING_LIST') {
-        const listData = {
-          name: params.name,
-          items: [],
-          reminderDate: null,
-          reminderLeadMinutes: 30
-        };
-        console.log('📝 Creating shopping list:', listData);
+        const listData = { name: params.name, reminderDate: null, reminderLeadMinutes: 30 };
+        console.log('📤 Створюємо список:', listData);
         const response = await api.createShoppingList(listData);
-        console.log('✅ Shopping list created:', response);
+        console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `🛒 Список покупок "${params.name}" створено! Тепер ви можете додавати товари командою "додай до списку ${params.name} молоко, хліб"`;
+          return `🛒 Список покупок "${params.name}" створено! Додавайте товари командою "додай до списку ${params.name} товар1, товар2"`;
         }
-        return `❌ Помилка створення списку: ${response.error || 'невідома помилка'}`;
+        return `❌ Помилка: ${response.error || 'невідома помилка'}`;
       }
       
-      // Додати товари до списку
+      // ДОДАТИ ТОВАРИ ДО СПИСКУ
       if (action === 'ADD_SHOPPING_ITEMS') {
         const listsResponse = await api.getShoppingLists();
-        console.log('📋 All lists:', listsResponse);
         if (listsResponse.success && listsResponse.lists) {
           const list = listsResponse.lists.find((l: any) => l.name.toLowerCase() === params.listName.toLowerCase());
           if (list) {
             let successCount = 0;
             for (const itemName of params.items) {
-              const itemData = {
-                name: itemName.trim(),
-                quantity: '',
-                isCompleted: false
-              };
-              console.log(`📝 Adding item "${itemName}" to list "${list.id}"`);
+              const itemData = { name: itemName.trim(), quantity: '', isCompleted: false };
               const itemResponse = await api.addShoppingItem(list.id, itemData);
               if (itemResponse.success) successCount++;
             }
             return `✅ Додано ${successCount}/${params.items.length} товарів до списку "${params.listName}"!`;
           }
-          return `❌ Список "${params.listName}" не знайдено. Спочатку створіть список командою "створи список покупок ${params.listName}"`;
+          return `❌ Список "${params.listName}" не знайдено. Спочатку створіть список.`;
         }
-        return `❌ Не вдалося знайти списки покупок.`;
+        return `❌ Помилка отримання списків`;
       }
       
       return null;
-    } catch (error) {
-      console.error('❌ Action execution error:', error);
-      return `❌ Помилка виконання команди: ${(error as Error).message}`;
+    } catch (error: any) {
+      console.error('❌ Помилка виконання дії:', error);
+      return `❌ Помилка: ${error.response?.data?.error || error.message}`;
     }
   };
 
-  // Парсинг команд з тексту
+  // ==================== ПАРСИНГ КОМАНД ====================
   const parseActions = (text: string): { action: string; params: any }[] => {
     const actions: { action: string; params: any }[] = [];
-    const lowerText = text.toLowerCase();
     
-    console.log('🔍 Parsing text:', text);
+    console.log('🔍 Парсимо текст:', text);
     
     // Додати витрату: "додай витрату Кава на 50 грн"
     let match = text.match(/додай\s+витрату\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
     if (match) {
-      console.log('✅ Matched ADD_EXPENSE:', match);
-      actions.push({ action: 'ADD_EXPENSE', params: { title: match[1].trim(), amount: parseFloat(match[2]), category: 'Інше', notes: '' } });
-    }
-    
-    // Додати витрату з категорією
-    match = text.match(/додай\s+витрату\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?\s*(?:в|у)\s+категорії\s+["']?([^"']+)["']?/i);
-    if (match) {
-      console.log('✅ Matched ADD_EXPENSE with category:', match);
-      actions.push({ action: 'ADD_EXPENSE', params: { title: match[1].trim(), amount: parseFloat(match[2]), category: match[3].trim(), notes: '' } });
+      actions.push({ action: 'ADD_EXPENSE', params: { title: match[1].trim(), amount: parseFloat(match[2]), category: 'Інше' } });
     }
     
     // Додати дохід
     match = text.match(/додай\s+дохід\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
     if (match) {
-      console.log('✅ Matched ADD_INCOME:', match);
-      actions.push({ action: 'ADD_INCOME', params: { title: match[1].trim(), amount: parseFloat(match[2]), category: 'Зарплата', notes: '' } });
+      actions.push({ action: 'ADD_INCOME', params: { title: match[1].trim(), amount: parseFloat(match[2]), category: 'Зарплата' } });
     }
     
     // Додати ціль
     match = text.match(/додай\s+ціль\s+["']?([^"']+)["']?\s+на\s+(\d+(?:\.\d+)?)\s*(?:грн|₴)?/i);
     if (match) {
-      console.log('✅ Matched ADD_GOAL:', match);
-      actions.push({ action: 'ADD_GOAL', params: { name: match[1].trim(), amount: parseFloat(match[2]), emoji: '🎯', notes: '', deadline: null } });
+      actions.push({ action: 'ADD_GOAL', params: { name: match[1].trim(), amount: parseFloat(match[2]), emoji: '🎯' } });
     }
     
     // Створити список покупок
     match = text.match(/створи\s+список\s+покупок\s+["']?([^"']+)["']?/i);
     if (match) {
-      console.log('✅ Matched CREATE_SHOPPING_LIST:', match);
       actions.push({ action: 'CREATE_SHOPPING_LIST', params: { name: match[1].trim() } });
     }
     
-    // Додати товари до списку
+    // Додати до списку
     match = text.match(/додай\s+до\s+списку\s+["']?([^"']+)["']?\s+(.+)/i);
     if (match) {
       const items = match[2].split(/[,，、]/).map(i => i.trim()).filter(i => i);
       if (items.length > 0) {
-        console.log('✅ Matched ADD_SHOPPING_ITEMS:', match, items);
         actions.push({ action: 'ADD_SHOPPING_ITEMS', params: { listName: match[1].trim(), items } });
       }
     }
     
-    console.log('📋 Parsed actions:', actions);
+    console.log('📋 Знайдені дії:', actions);
     return actions;
   };
 
+  // ==================== ВІДПРАВКА ПОВІДОМЛЕННЯ ====================
   const sendMessage = async () => {
     const text = inputText.trim();
     if (!text || isLoading || isStreaming) return;
 
+    // Додаємо повідомлення користувача
     const userMessage: ChatMessage = { id: Date.now().toString(), content: text, isUser: true, timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
     setIsLoading(true);
 
+    // Зберігаємо повідомлення в чаті
     if (currentSessionId) await api.createChatMessage(currentSessionId, text, true);
 
-    // Спочатку виконуємо дії
+    // ВИКОНУЄМО КОМАНДИ
     const actions = parseActions(text);
     let actionResults: string[] = [];
+    
     for (const act of actions) {
       const result = await executeAction(act.action, act.params);
       if (result) actionResults.push(result);
     }
 
-    // Формуємо системний промпт для AI
-    const systemPrompt = `Ти Lis — фінансовий асистент. Відповідай українською коротко, використовуй емодзі. Ти допомагаєш з аналізом витрат, плануванням бюджету, цілями та покупками.${actionResults.length ? `\n\nКОРИСТУВАЧ ВИКОНАВ ДІЇ:\n${actionResults.join('\n')}\n\nПідтверди виконання і запропонуй подальшу допомогу.` : ''}`;
+    // Формуємо запит до AI
+    const systemPrompt = `Ти Lis — фінансовий асистент. Відповідай українською коротко, використовуй емодзі. 
+Ти допомагаєш з аналізом витрат, плануванням бюджету, цілями та покупками.
+${actionResults.length ? `\n\nКОРИСТУВАЧ ВИКОНАВ ДІЇ:\n${actionResults.join('\n')}\n\nПідтверди виконання і запропонуй подальшу допомогу.` : ''}`;
 
     try {
       setIsStreaming(true);
       setStreamingText('');
+      
       const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` },
@@ -270,6 +271,7 @@ export const ChatView: React.FC = () => {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullResponse = '';
+      
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -286,11 +288,12 @@ export const ChatView: React.FC = () => {
         }
       }
 
-      const aiMessage: ChatMessage = { id: Date.now().toString(), content: fullResponse || 'Готово! Ще щось?', isUser: false, timestamp: new Date() };
+      const aiMessage: ChatMessage = { id: Date.now().toString(), content: fullResponse || 'Готово!', isUser: false, timestamp: new Date() };
       setMessages(prev => [...prev, aiMessage]);
       if (currentSessionId) await api.createChatMessage(currentSessionId, aiMessage.content, false);
+      
     } catch (error) {
-      console.error(error);
+      console.error('❌ Помилка AI:', error);
       const errorMsg = 'Вибач, сталася помилка. Спробуй ще раз.';
       setStreamingText(errorMsg);
       setMessages(prev => [...prev, { id: Date.now().toString(), content: errorMsg, isUser: false, timestamp: new Date() }]);
