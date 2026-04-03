@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
-// Функція для хешування PIN (має бути ідентичною до iOS)
+// Функція для хешування PIN (ідентична до iOS)
 const hashPin = async (pin: string, userId: string): Promise<string> => {
   // iOS: SHA256(userId + pin)
   const input = userId + pin;
+  console.log('🔐 Хешування: input =', input);
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const hexHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  console.log('🔐 Хеш =', hexHash);
+  return hexHash;
 };
 
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
@@ -57,19 +59,19 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         return;
       }
       
-      // Отримуємо userId
+      // Отримуємо userId - ЦЕ КЛЮЧОВИЙ МОМЕНТ
       const userId = user?.id || '';
+      
+      console.log('========== PIN VERIFICATION DEBUG ==========');
+      console.log('User ID from API:', userId);
+      console.log('User email:', user?.email);
+      console.log('Entered PIN:', pin);
+      console.log('Stored hash from server:', storedHash);
       
       // Хешуємо введений PIN
       const hashedInput = await hashPin(pin, userId);
       
-      // Детальне логування для діагностики
-      console.log('========== PIN VERIFICATION DEBUG ==========');
-      console.log('Entered PIN:', pin);
-      console.log('User ID:', userId);
-      console.log('Input string (userId+pin):', userId + pin);
       console.log('Calculated hash:', hashedInput);
-      console.log('Stored hash from server:', storedHash);
       console.log('Hashes match?', storedHash === hashedInput);
       console.log('============================================');
       

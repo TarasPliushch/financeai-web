@@ -11,11 +11,10 @@ export const RootView: React.FC = () => {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingPin, setIsCheckingPin] = useState(false);
 
-  // Перевірка PIN при завантаженні та при зміні автентифікації
+  // Перевірка PIN при завантаженні
   useEffect(() => {
     const checkPin = async () => {
       if (!isAuthenticated || !user) {
-        // Якщо не автентифікований - не показуємо PIN
         setIsUnlocked(false);
         setShowPinUnlock(false);
         return;
@@ -24,22 +23,24 @@ export const RootView: React.FC = () => {
       setIsCheckingPin(true);
       
       try {
-        // Оновлюємо дані користувача, щоб отримати актуальний pinHash
+        // Оновлюємо дані користувача
         await refreshUser();
         
         const hasPin = !!user?.pinHash;
         
-        // Завжди показуємо PIN, якщо він встановлений (незалежно від localStorage)
+        console.log('🔐 RootView: перевірка PIN');
+        console.log('  isAuthenticated:', isAuthenticated);
+        console.log('  hasPin:', hasPin);
+        console.log('  isUnlocked:', isUnlocked);
+        
         if (hasPin && !isUnlocked) {
           setShowPinUnlock(true);
         } else if (!hasPin) {
-          // Якщо PIN не встановлений - одразу пропускаємо
           setIsUnlocked(true);
           setShowPinUnlock(false);
         }
       } catch (error) {
         console.error('Error checking PIN:', error);
-        // У разі помилки - пропускаємо PIN перевірку
         setIsUnlocked(true);
         setShowPinUnlock(false);
       } finally {
@@ -51,10 +52,9 @@ export const RootView: React.FC = () => {
   }, [isAuthenticated, user, isUnlocked]);
 
   const handlePinSuccess = () => {
+    console.log('🔐 PIN успішно введено');
     setShowPinUnlock(false);
     setIsUnlocked(true);
-    // Після успішного введення PIN - очищаємо прапорець розблокування при закритті
-    sessionStorage.setItem('pinVerified', 'true');
   };
 
   // Якщо користувач вийшов - скидаємо стан
@@ -62,7 +62,6 @@ export const RootView: React.FC = () => {
     if (!isAuthenticated) {
       setIsUnlocked(false);
       setShowPinUnlock(false);
-      sessionStorage.removeItem('pinVerified');
     }
   }, [isAuthenticated]);
 
