@@ -13,44 +13,38 @@ export const ShoppingListView: React.FC = () => {
   const [selectedList, setSelectedList] = useState<ShoppingList | null>(null);
   const { user } = useAuth();
 
-  useEffect(() => { 
-    console.log('🛒 ShoppingListView mounted, user:', user?.id);
-    loadLists(); 
-  }, [user?.id]);
+  useEffect(() => { loadLists(); }, []);
 
   const loadLists = async () => {
     setIsLoading(true);
     try {
-      console.log('📡 Завантаження списків покупок...');
-      console.log('🔑 userId:', api.getUserId());
-      console.log('🎫 token:', api.getToken()?.substring(0, 20) + '...');
-      
       const response = await api.getShoppingLists();
-      console.log('📦 Відповідь сервера:', response);
+      console.log('📋 Відповідь сервера:', response);
       
       if (response.success && response.lists) {
-        console.log(`✅ Отримано ${response.lists.length} списків`);
         const parsedLists = response.lists.map((l: any) => ({
           id: l.id,
           name: l.name,
-          items: l.items || [],
+          // Підтримка обох форматів: isCompleted та isChecked
+          items: (l.items || []).map((i: any) => ({
+            id: i.id,
+            name: i.name,
+            quantity: i.quantity || '',
+            isCompleted: i.isCompleted === true || i.isChecked === true
+          })),
           reminderDate: l.reminderDate ? new Date(l.reminderDate) : undefined,
           reminderLeadMinutes: l.reminderLeadMinutes || 30,
           createdAt: new Date(l.createdAt),
           serverId: l.id,
-          completedCount: (l.items || []).filter((i: any) => i.isCompleted || i.isChecked).length,
+          completedCount: (l.items || []).filter((i: any) => i.isCompleted === true || i.isChecked === true).length,
           totalCount: (l.items || []).length,
         }));
         setLists(parsedLists);
-        console.log('📋 Парсовані списки:', parsedLists);
-      } else {
-        console.log('⚠️ Немає списків або помилка:', response);
-        setLists([]);
+        console.log(`✅ Завантажено ${parsedLists.length} списків`);
       }
     } catch (error) {
-      console.error('❌ Помилка завантаження списків:', error);
-      toast.error('Помилка завантаження списків: ' + (error as Error).message);
-      setLists([]);
+      console.error('❌ Помилка завантаження:', error);
+      toast.error('Помилка завантаження списків');
     } finally {
       setIsLoading(false);
     }
@@ -63,14 +57,12 @@ export const ShoppingListView: React.FC = () => {
     }
     
     try {
-      console.log('📝 Створення списку:', { name, reminderDate, reminderLeadMinutes });
       const response = await api.createShoppingList({
         name: name.trim(),
         reminderDate: reminderDate ? reminderDate.toISOString() : null,
         reminderLeadMinutes,
         items: []
       });
-      console.log('📦 Відповідь створення:', response);
       
       if (response.success && response.list) {
         const newList: ShoppingList = {
@@ -87,10 +79,9 @@ export const ShoppingListView: React.FC = () => {
         setLists([newList, ...lists]);
         toast.success(`Список "${name}" створено`);
         return true;
-      } else {
-        toast.error(response?.error || 'Помилка створення списку');
-        return false;
       }
+      toast.error(response?.error || 'Помилка створення');
+      return false;
     } catch (error) {
       console.error('❌ Помилка створення:', error);
       toast.error('Помилка створення списку');
@@ -100,8 +91,7 @@ export const ShoppingListView: React.FC = () => {
 
   const handleUpdateList = async (updatedList: ShoppingList) => {
     try {
-      console.log('✏️ Оновлення списку:', { id: updatedList.serverId, name: updatedList.name, itemsCount: updatedList.items.length });
-      
+      // ВАЖЛИВО: відправляємо isCompleted як isChecked для сервера
       const updateData = {
         name: updatedList.name,
         reminderDate: updatedList.reminderDate?.toISOString() || null,
@@ -110,12 +100,11 @@ export const ShoppingListView: React.FC = () => {
           id: i.id,
           name: i.name,
           quantity: i.quantity,
-          isCompleted: i.isCompleted
+          isChecked: i.isCompleted  // <- isChecked для сервера
         }))
       };
       
       const response = await api.updateShoppingList(updatedList.serverId || updatedList.id, updateData);
-      console.log('📦 Відповідь оновлення:', response);
       
       if (response.success) {
         setLists(lists.map(l => l.id === updatedList.id ? updatedList : l));
@@ -132,7 +121,6 @@ export const ShoppingListView: React.FC = () => {
   const handleDeleteList = async (list: ShoppingList) => {
     if (!confirm(`Видалити список "${list.name}"?`)) return;
     try {
-      console.log('🗑️ Видалення списку:', list.serverId);
       await api.deleteShoppingList(list.serverId || list.id);
       setLists(lists.filter(l => l.id !== list.id));
       toast.success('Список видалено');
@@ -167,7 +155,6 @@ export const ShoppingListView: React.FC = () => {
           <div className="text-6xl mb-4">🛒</div>
           <p className="text-muted-foreground">Немає списків</p>
           <p className="text-sm text-muted-foreground mt-1">Натисніть + щоб створити список покупок</p>
-          <p className="text-xs text-muted-foreground mt-4">Списки синхронізуються з вашим акаунтом</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
