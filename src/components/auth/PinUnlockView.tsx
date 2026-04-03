@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
-// Той самий метод хешування, що і в iOS додатку
+// Функція для хешування PIN (має бути ідентичною до iOS)
 const hashPin = async (pin: string, userId: string): Promise<string> => {
+  // iOS: SHA256(userId + pin)
   const input = userId + pin;
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
@@ -55,14 +57,21 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         return;
       }
       
-      // Використовуємо той самий метод хешування, що в iOS
-      const hashedInput = await hashPin(pin, user?.id || '');
+      // Отримуємо userId
+      const userId = user?.id || '';
       
-      console.log('🔐 Перевірка PIN:');
-      console.log('  Введений PIN:', pin);
-      console.log('  User ID:', user?.id);
-      console.log('  Хеш введеного:', hashedInput);
-      console.log('  Хеш з сервера:', storedHash);
+      // Хешуємо введений PIN
+      const hashedInput = await hashPin(pin, userId);
+      
+      // Детальне логування для діагностики
+      console.log('========== PIN VERIFICATION DEBUG ==========');
+      console.log('Entered PIN:', pin);
+      console.log('User ID:', userId);
+      console.log('Input string (userId+pin):', userId + pin);
+      console.log('Calculated hash:', hashedInput);
+      console.log('Stored hash from server:', storedHash);
+      console.log('Hashes match?', storedHash === hashedInput);
+      console.log('============================================');
       
       if (storedHash === hashedInput) {
         toast.success('PIN-код правильний');
@@ -156,7 +165,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
 
         <button
           onClick={() => {
-            // Повний вихід з акаунту
             localStorage.removeItem('authToken');
             localStorage.removeItem('userId');
             sessionStorage.removeItem('pinVerified');

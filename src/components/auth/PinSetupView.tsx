@@ -65,18 +65,20 @@ export const PinSetupView: React.FC<PinSetupViewProps> = ({ onSuccess, onCancel,
         setStep('enter');
       } else {
         setIsLoading(true);
-        // Використовуємо той самий метод хешування, що в iOS
-        const hashedPin = await hashPin(pin, user?.id || '');
-        console.log('🔐 Збереження PIN:');
-        console.log('  PIN:', pin);
-        console.log('  User ID:', user?.id);
-        console.log('  Хеш:', hashedPin);
+        const userId = user?.id || '';
+        const hashedPin = await hashPin(pin, userId);
+        
+        console.log('========== PIN SETUP DEBUG ==========');
+        console.log('PIN:', pin);
+        console.log('User ID:', userId);
+        console.log('Input string (userId+pin):', userId + pin);
+        console.log('Calculated hash:', hashedPin);
+        console.log('=====================================');
         
         const success = await updateProfile({ pinHash: hashedPin });
         if (success) {
           await refreshUser();
           toast.success(mode === 'setup' ? 'PIN-код встановлено!' : 'PIN-код змінено!');
-          localStorage.setItem('pinEnabled', 'true');
           if (onSuccess) onSuccess();
         } else {
           toast.error('Помилка збереження PIN');
