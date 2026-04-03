@@ -17,8 +17,9 @@ export const ProfileView: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Завантажуємо аватар з профілю користувача
+    // Load avatar from user profile (server)
     if (user?.avatarEmoji) {
+      console.log("📸 Отримано avatarEmoji:", user.avatarEmoji.substring(0, 50));
       if (user.avatarEmoji.startsWith('data:image') || user.avatarEmoji.startsWith('http')) {
         setAvatarImageUrl(user.avatarEmoji);
         setEditAvatarEmoji('📷');
@@ -51,7 +52,7 @@ export const ProfileView: React.FC = () => {
       setAvatarImageUrl(base64String);
       setEditAvatarEmoji('📷');
       
-      // Відправляємо на сервер через updateProfile
+      // Send to server via updateProfile
       const success = await updateProfile({ avatarEmoji: base64String });
       if (success) {
         toast.success('Аватар оновлено');
