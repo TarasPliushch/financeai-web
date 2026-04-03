@@ -15,7 +15,6 @@ class ApiService {
 
     this.api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
       const token = this.getToken();
-      console.log('🔐 API Request:', config.url, 'Token exists:', !!token);
       if (token) config.headers.Authorization = `Bearer ${token}`;
       const userId = this.getUserId();
       if (userId) config.headers['user-id'] = userId;
@@ -25,7 +24,6 @@ class ApiService {
     this.api.interceptors.response.use(
       (response) => response,
       (error) => {
-        console.log('🔐 API Response Error:', error.response?.status, error.config?.url);
         if (error.response?.status === 401) {
           console.log('🔐 401 Unauthorized - logging out');
           this.setToken(null);
@@ -39,19 +37,12 @@ class ApiService {
 
   setToken(token: string | null) {
     this.token = token;
-    if (token) {
-      localStorage.setItem('authToken', token);
-      console.log('🔐 Token saved to localStorage');
-    } else {
-      localStorage.removeItem('authToken');
-      console.log('🔐 Token removed from localStorage');
-    }
+    if (token) localStorage.setItem('authToken', token);
+    else localStorage.removeItem('authToken');
   }
 
   getToken(): string | null {
-    const token = this.token || localStorage.getItem('authToken');
-    console.log('🔐 Getting token:', token ? `${token.substring(0, 20)}...` : 'null');
-    return token;
+    return this.token || localStorage.getItem('authToken');
   }
 
   setUserId(userId: string | null) {
@@ -106,6 +97,33 @@ class ApiService {
 
   async resetPassword(email: string, code: string, newPassword: string) {
     const res = await this.api.post('/auth/reset-password', { email, code, newPassword });
+    return res.data;
+  }
+
+  // ==================== PIN RECOVERY ====================
+  async requestPinReset(email: string) {
+    const res = await this.api.post('/auth/reset-pin-request', { email });
+    return res.data;
+  }
+
+  async verifyPinResetCode(email: string, code: string, newPinHash: string) {
+    const res = await this.api.post('/auth/reset-pin-verify', { email, code, newPinHash });
+    return res.data;
+  }
+
+  // ==================== 2FA ====================
+  async enable2FA() {
+    const res = await this.api.post('/auth/2fa/enable');
+    return res.data;
+  }
+
+  async disable2FA() {
+    const res = await this.api.post('/auth/2fa/disable');
+    return res.data;
+  }
+
+  async verify2FACode(code: string) {
+    const res = await this.api.post('/auth/2fa/verify', { code });
     return res.data;
   }
 
@@ -242,35 +260,7 @@ class ApiService {
 
 export const api = new ApiService();
 
-// Додаємо обробник події authError
 window.addEventListener('authError', () => {
   console.log('🔐 Auth error event received');
   window.location.href = '/login';
 });
-
-  // ==================== PIN RECOVERY ====================
-  async requestPinReset(email: string) {
-    const res = await this.api.post('/auth/reset-pin-request', { email });
-    return res.data;
-  }
-
-  async verifyPinResetCode(email: string, code: string, newPinHash: string) {
-    const res = await this.api.post('/auth/reset-pin-verify', { email, code, newPinHash });
-    return res.data;
-  }
-
-  // ==================== 2FA ====================
-  async enable2FA() {
-    const res = await this.api.post('/auth/2fa/enable');
-    return res.data;
-  }
-
-  async disable2FA() {
-    const res = await this.api.post('/auth/2fa/disable');
-    return res.data;
-  }
-
-  async verify2FACode(code: string) {
-    const res = await this.api.post('/auth/2fa/verify', { code });
-    return res.data;
-  }
