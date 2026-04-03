@@ -155,8 +155,8 @@ export const ChatView: React.FC = () => {
   const currentSession = sessions.find(s => s.id === currentSessionId);
 
   return (
-    <div className="fixed inset-0 top-16 left-0 right-0 bottom-0 lg:left-72 flex bg-background">
-      {/* Sidebar */}
+    <div className="flex h-full bg-background rounded-xl overflow-hidden border border-white/10">
+      {/* Sessions sidebar */}
       <div className={`fixed inset-y-0 left-0 z-20 w-80 bg-background border-r border-white/10 transform transition-transform md:relative md:translate-x-0 ${showSessions ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
           <div className="p-4 border-b border-white/10 flex justify-between items-center">
@@ -169,7 +169,7 @@ export const ChatView: React.FC = () => {
                 <p className="font-medium text-sm truncate pr-8">{s.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{s.lastMessage || 'Новий чат'}</p>
                 <p className="text-xs text-muted-foreground mt-1">{format(s.updatedAt, 'dd MMM, HH:mm', { locale: uk })}</p>
-                <button onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} className="absolute right-2 top-2 p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100" title="Видалити">
+                <button onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} className="absolute right-2 top-2 p-1 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 3h6"/>
                   </svg>
@@ -178,17 +178,17 @@ export const ChatView: React.FC = () => {
             ))}
           </div>
           <div className="p-4 border-t border-white/10">
-            <button onClick={createNewSession} className="w-full py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90">+ Новий чат</button>
+            <button onClick={createNewSession} className="w-full py-2 rounded-xl bg-primary text-white font-medium hover:opacity-90">+ Новий чат</button>
           </div>
         </div>
       </div>
 
-      {/* Chat Area - full height */}
+      {/* Chat area */}
       <div className="flex-1 flex flex-col h-full">
-        <div className="p-4 border-b border-white/10 flex items-center gap-3 flex-shrink-0">
+        <div className="p-4 border-b border-white/10 flex items-center gap-3">
           <button onClick={() => setShowSessions(true)} className="md:hidden p-2 rounded-lg hover:bg-white/10">☰</button>
           <h3 className="font-semibold flex-1">{currentSession?.name || 'Чат з AI'}</h3>
-          <p className="text-xs text-muted-foreground">Lis — фінансовий асистент</p>
+          <p className="text-xs text-muted-foreground">Lis — асистент</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -197,16 +197,6 @@ export const ChatView: React.FC = () => {
               <div className="text-6xl mb-4">🤖</div>
               <p className="text-muted-foreground">Привіт! Я Lis, твій фінансовий асистент</p>
               <p className="text-sm text-muted-foreground mt-2">Можу додавати витрати, доходи, цілі та списки покупок за командою</p>
-              <div className="mt-6 p-4 bg-white/5 rounded-xl max-w-md mx-auto">
-                <p className="text-xs font-medium text-muted-foreground mb-2">📝 Приклади команд:</p>
-                <ul className="text-xs text-left space-y-1 text-muted-foreground">
-                  <li>• "додай витрату Кава на 50 грн"</li>
-                  <li>• "додай дохід Зарплата на 15000 грн"</li>
-                  <li>• "додай ціль Телефон на 15000"</li>
-                  <li>• "створи список покупок Продукти"</li>
-                  <li>• "додай до списку Продукти молоко, хліб, яйця"</li>
-                </ul>
-              </div>
             </div>
           )}
           {messages.map(m => (
@@ -238,13 +228,13 @@ export const ChatView: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 border-t border-white/10 flex-shrink-0">
+        <div className="p-4 border-t border-white/10">
           <div className="flex gap-2">
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder="Напишіть повідомлення або команду..."
+              placeholder="Напишіть повідомлення..."
               className="flex-1 px-4 py-3 rounded-xl border border-white/20 bg-white/5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
               rows={1}
               disabled={isLoading || isStreaming}
@@ -252,12 +242,12 @@ export const ChatView: React.FC = () => {
             <button
               onClick={sendMessage}
               disabled={!inputText.trim() || isLoading || isStreaming}
-              className="px-5 py-3 rounded-xl bg-primary text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="px-5 py-3 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50"
             >
               ➤
             </button>
           </div>
-          <p className="text-xs text-muted-foreground mt-2 text-center">Enter — відправити, Shift+Enter — новий рядок</p>
+          <p className="text-xs text-muted-foreground mt-2 text-center">Enter — відправити</p>
         </div>
       </div>
     </div>

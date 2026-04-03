@@ -4,11 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const navigation = [
-  { name: 'Фінанси', path: '/finances', icon: '💰', iconActive: '💎' },
-  { name: 'Цілі', path: '/goals', icon: '🎯', iconActive: '🏆' },
-  { name: 'Покупки', path: '/shopping', icon: '🛒', iconActive: '🛍️' },
-  { name: 'Чат', path: '/chat', icon: '💬', iconActive: '💭' },
-  { name: 'Сповіщення', path: '/notifications', icon: '🔔', iconActive: '🔔' },
+  { name: 'Фінанси', path: '/finances', icon: '💰' },
+  { name: 'Цілі', path: '/goals', icon: '🎯' },
+  { name: 'Покупки', path: '/shopping', icon: '🛒' },
+  { name: 'Чат', path: '/chat', icon: '💬' },
+  { name: 'Сповіщення', path: '/notifications', icon: '🔔' },
 ];
 
 export const Layout: React.FC = () => {
@@ -50,97 +50,100 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-30 w-72 transform bg-gradient-to-b from-secondary/95 to-secondary/80 backdrop-blur-xl transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-background border-r border-white/10 transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-full flex-col">
-          <div className="flex h-20 items-center justify-center border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center shadow-lg">
-                <span className="text-2xl">🧠</span>
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">FinanceAI</h1>
-            </div>
+          {/* Logo */}
+          <div className="flex h-16 items-center justify-center border-b border-white/10">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">FinanceAI</h1>
           </div>
 
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          {/* Navigation */}
+          <nav className="flex-1 px-3 py-4 space-y-1">
             {navigation.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-4 rounded-xl px-4 py-3 text-base font-medium transition-all duration-200 group ${
+                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-primary shadow-inner'
-                      : 'text-foreground/70 hover:bg-white/5 hover:text-foreground'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
                   }`
                 }
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
+                <span className="text-xl">{item.icon}</span>
                 <span>{item.name}</span>
-                {({ isActive }) => isActive && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500" />
-                )}
               </NavLink>
             ))}
           </nav>
 
-          <div className="border-t border-white/10 p-4 space-y-3">
-            <button onClick={goToProfile} className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 group">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center overflow-hidden shadow-lg">
+          {/* User section */}
+          <div className="border-t border-white/10 p-3 space-y-3">
+            <button
+              onClick={goToProfile}
+              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center overflow-hidden">
                 {avatarImageUrl ? (
                   <img src={avatarImageUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-2xl">{avatarDisplay}</span>
+                  <span className="text-base">{avatarDisplay}</span>
                 )}
               </div>
               <div className="flex-1 text-left">
-                <p className="text-sm font-semibold">{getDisplayName()}</p>
-                <p className="text-xs text-muted-foreground">Переглянути профіль</p>
+                <p className="text-sm font-medium truncate">{getDisplayName()}</p>
+                <p className="text-xs text-muted-foreground">Профіль</p>
               </div>
-              <span className="text-muted-foreground group-hover:translate-x-1 transition-transform">→</span>
             </button>
             
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white/5">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🎨</span>
-                <span className="text-sm text-muted-foreground">Тема</span>
-              </div>
-              <select value={theme} onChange={(e) => setTheme(e.target.value as any)} className="bg-transparent border-none text-sm focus:outline-none cursor-pointer">
+            {/* Theme toggle */}
+            <div className="flex items-center justify-between px-2 py-1.5">
+              <span className="text-sm text-muted-foreground">Тема</span>
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as any)}
+                className="bg-transparent border border-white/20 rounded-lg px-2 py-1 text-sm focus:outline-none"
+              >
                 <option value="system">🌓 Системна</option>
                 <option value="light">☀️ Світла</option>
                 <option value="dark">🌙 Темна</option>
               </select>
             </div>
             
-            <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-all duration-200 text-red-400">
-              <span className="text-xl">🚪</span>
-              <span className="text-sm font-medium">Вийти</span>
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <span className="text-lg">🚪</span>
+              <span className="text-sm">Вийти</span>
             </button>
           </div>
         </div>
       </aside>
 
-      <div className={`lg:pl-72 ${isChatPage ? 'p-0' : 'p-4 lg:p-6'}`}>
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-white/10 bg-background/80 backdrop-blur-lg px-4 lg:hidden">
-          <button onClick={() => setSidebarOpen(true)} className="rounded-xl p-2 hover:bg-white/10 transition-colors">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Main content */}
+      <div className={`lg:pl-64 ${isChatPage ? 'p-0' : 'p-4 lg:p-6'}`}>
+        {/* Mobile header */}
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-white/10 bg-background/80 backdrop-blur-lg px-4 lg:hidden">
+          <button onClick={() => setSidebarOpen(true)} className="rounded-lg p-2 hover:bg-white/10">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center">
-              <span className="text-sm">🧠</span>
-            </div>
-            <h2 className="text-lg font-semibold">FinanceAI</h2>
-          </div>
-          <div className="w-8" />
+          <h2 className="text-base font-semibold">FinanceAI</h2>
+          <div className="w-6" />
         </header>
 
-        <main className={isChatPage ? 'h-[calc(100vh-64px)]' : ''}>
+        {/* Page content */}
+        <main className={isChatPage ? 'h-[calc(100vh-56px)]' : ''}>
           <Outlet />
         </main>
       </div>
