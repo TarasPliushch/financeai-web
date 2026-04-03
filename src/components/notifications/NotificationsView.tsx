@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppNotification } from '../../types';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 
 export const NotificationsView: React.FC = () => {
