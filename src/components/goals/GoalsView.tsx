@@ -1,47 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { SavingsGoal } from '../../types';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 
+interface Goal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  imageEmoji: string;
+  notes?: string;
+  deadline?: Date | null;
+  currency: string;
+  serverId?: string;
+  progress: number;
+  isCompleted: boolean;
+  remaining: number;
+}
+
 export const GoalsView: React.FC = () => {
-  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const { user } = useAuth();
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
-  const { user } = useAuth();
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const currency = user?.currency || '₴';
 
-  useEffect(() => { loadGoals(); }, []);
+  useEffect(() => {
+    loadGoals();
+  }, []);
 
   const loadGoals = async () => {
     setIsLoading(true);
     try {
       const response = await api.getGoals();
-      console.log('🎯 Завантаження цілей:', response);
+      console.log('Goals loaded:', response);
       
       if (response.success && response.goals) {
-        const parsed = response.goals.map((g: any) => ({
-          id: g.id,
-          name: g.name,
-          targetAmount: g.targetAmount,
-          currentAmount: g.currentAmount,
-          imageEmoji: g.imageEmoji || '💰',
-          notes: g.notes,
-          deadline: g.deadline ? new Date(g.deadline) : undefined,
-          currency: g.currency || '₴',
-          serverId: g.id,
-          progress: g.targetAmount > 0 ? g.currentAmount / g.targetAmount : 0,
-          isCompleted: g.currentAmount >= g.targetAmount,
-          remaining: Math.max(g.targetAmount - g.currentAmount, 0),
-        }));
+        const parsed = response.goals.map((g: any) => {
+          // Безпечне парсення дати
+          let deadlineDate = null;
+          if (g.deadline) {
+            try {
+              const parsedDate = new Date(g.deadline);
+              if (!isNaN(parsedDate.getTime())) {
+                deadlineDate = parsedDate;
+              }
+            } catch (e) {
+              console.warn('Invalid deadline date:', g.deadline);
+            }
+          }
+          
+          return {
+            id: g.id,
+            name: g.name,
+            targetAmount: g.targetAmount,
+            currentAmount: g.currentAmount,
+            imageEmoji: g.imageEmoji || '💰',
+            notes: g.notes,
+            deadline: deadlineDate,
+            currency: g.currency || '₴',
+            serverId: g.id,
+            progress: g.targetAmount > 0 ? g.currentAmount / g.targetAmount : 0,
+            isCompleted: g.currentAmount >= g.targetAmount,
+            remaining: Math.max(g.targetAmount - g.currentAmount, 0),
+          };
+        });
         setGoals(parsed);
-        console.log(`✅ Завантажено ${parsed.length} цілей`);
+        console.log(`Loaded ${parsed.length} goals`);
       }
     } catch (error) {
-      console.error('❌ Помилка завантаження цілей:', error);
+      console.error('Error loading goals:', error);
       toast.error('Помилка завантаження цілей');
     } finally {
       setIsLoading(false);
@@ -52,14 +83,14 @@ export const GoalsView: React.FC = () => {
     try {
       const response = await api.createGoal(data);
       if (response.success && response.goal) {
-        const newGoal: SavingsGoal = {
+        const newGoal: Goal = {
           id: response.goal.id,
           name: response.goal.name,
           targetAmount: response.goal.targetAmount,
           currentAmount: response.goal.currentAmount,
           imageEmoji: response.goal.imageEmoji || '💰',
           notes: response.goal.notes,
-          deadline: response.goal.deadline ? new Date(response.goal.deadline) : undefined,
+          deadline: response.goal.deadline ? new Date(response.goal.deadline) : null,
           currency: response.goal.currency || '₴',
           serverId: response.goal.id,
           progress: response.goal.targetAmount > 0 ? response.goal.currentAmount / response.goal.targetAmount : 0,
@@ -74,13 +105,13 @@ export const GoalsView: React.FC = () => {
       toast.error(response?.error || 'Помилка додавання цілі');
       return false;
     } catch (error) {
-      console.error('❌ Помилка додавання:', error);
+      console.error('Error adding goal:', error);
       toast.error('Помилка додавання цілі');
       return false;
     }
   };
 
-  const handleUpdateGoal = async (goal: SavingsGoal, newAmount: number) => {
+  const handleUpdateGoal = async (goal: Goal, newAmount: number) => {
     try {
       await api.updateGoal(goal.serverId || goal.id, {
         name: goal.name,
@@ -91,24 +122,41 @@ export const GoalsView: React.FC = () => {
         deadline: goal.deadline?.toISOString(),
         currency: goal.currency,
       });
-      const updated = goals.map(g => g.id === goal.id ? { ...g, currentAmount: newAmount, progress: newAmount / g.targetAmount, isCompleted: newAmount >= g.targetAmount, remaining: Math.max(g.targetAmount - newAmount, 0) } : g);
+      const updated = goals.map(g => g.id === goal.id ? {
+        ...g,
+        currentAmount: newAmount,
+        progress: newAmount / g.targetAmount,
+        isCompleted: newAmount >= g.targetAmount,
+        remaining: Math.max(g.targetAmount - newAmount, 0)
+      } : g);
       setGoals(updated);
       toast.success('Прогрес оновлено');
     } catch (error) {
-      console.error('❌ Помилка оновлення:', error);
+      console.error('Error updating goal:', error);
       toast.error('Помилка оновлення');
     }
   };
 
-  const handleDeleteGoal = async (goal: SavingsGoal) => {
+  const handleDeleteGoal = async (goal: Goal) => {
     if (!confirm(`Видалити ціль "${goal.name}"?`)) return;
     try {
       await api.deleteGoal(goal.serverId || goal.id);
       setGoals(goals.filter(g => g.id !== goal.id));
       toast.success('Ціль видалено');
     } catch (error) {
-      console.error('❌ Помилка видалення:', error);
+      console.error('Error deleting goal:', error);
       toast.error('Помилка видалення');
+    }
+  };
+
+  // Безпечне форматування дати
+  const formatDate = (date: Date | null | undefined): string => {
+    if (!date) return '';
+    try {
+      if (isNaN(date.getTime())) return '';
+      return format(date, 'dd MMM yyyy', { locale: uk });
+    } catch {
+      return '';
     }
   };
 
@@ -126,7 +174,7 @@ export const GoalsView: React.FC = () => {
         <h1 className="text-2xl font-bold">Цілі</h1>
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-5 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 transition-opacity shadow-md shadow-primary/25"
+          className="px-5 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 transition-opacity"
         >
           + Нова ціль
         </button>
@@ -180,7 +228,7 @@ export const GoalsView: React.FC = () => {
                     <span className="text-muted-foreground">залишилось {currency}{goal.remaining.toFixed(0)}</span>
                   )}
                   {goal.deadline && (
-                    <span className="text-muted-foreground">до {format(goal.deadline, 'dd MMM', { locale: uk })}</span>
+                    <span className="text-muted-foreground">до {formatDate(goal.deadline)}</span>
                   )}
                 </div>
               </div>
@@ -202,46 +250,82 @@ export const GoalsView: React.FC = () => {
         </div>
       )}
 
-      {showAddModal && <AddGoalModal onClose={() => setShowAddModal(false)} onSave={handleAddGoal} currency={currency} />}
-      {selectedGoal && <GoalDetailModal goal={selectedGoal} currency={currency} onClose={() => setSelectedGoal(null)} onUpdate={handleUpdateGoal} />}
+      {showAddModal && (
+        <AddGoalModal
+          onClose={() => setShowAddModal(false)}
+          onSave={handleAddGoal}
+          currency={currency}
+        />
+      )}
+
+      {selectedGoal && (
+        <GoalDetailModal
+          goal={selectedGoal}
+          currency={currency}
+          onClose={() => setSelectedGoal(null)}
+          onUpdate={handleUpdateGoal}
+          formatDate={formatDate}
+        />
+      )}
     </div>
   );
 };
 
-const AddGoalModal: React.FC<{ onClose: () => void; onSave: (data: any) => void; currency: string }> = ({ onClose, onSave, currency }) => {
+// Модальне вікно додавання цілі
+const AddGoalModal: React.FC<{
+  onClose: () => void;
+  onSave: (data: any) => void;
+  currency: string;
+}> = ({ onClose, onSave, currency }) => {
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
   const [current, setCurrent] = useState('0');
   const [emoji, setEmoji] = useState('💰');
   const [notes, setNotes] = useState('');
   const [hasDeadline, setHasDeadline] = useState(false);
-  const [deadline, setDeadline] = useState(format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
+  const [deadline, setDeadline] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  
   const emojis = ['💰', '🏠', '🚗', '✈️', '📱', '💻', '🎓', '💍', '🎯', '🏋️', '📚', '🎮', '🌍', '🏖️', '💎'];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { toast.error('Введіть назву цілі'); return; }
-    if (!target || parseFloat(target) <= 0) { toast.error('Введіть коректну суму'); return; }
+    if (!name.trim()) {
+      toast.error('Введіть назву цілі');
+      return;
+    }
+    if (!target || parseFloat(target) <= 0) {
+      toast.error('Введіть коректну суму');
+      return;
+    }
     setIsSaving(true);
-    await onSave({ 
-      name: name.trim(), 
-      targetAmount: parseFloat(target), 
-      currentAmount: parseFloat(current), 
-      imageEmoji: emoji, 
-      notes: notes.trim() || undefined, 
-      deadline: hasDeadline ? new Date(deadline).toISOString() : undefined, 
-      currency 
+    await onSave({
+      name: name.trim(),
+      targetAmount: parseFloat(target),
+      currentAmount: parseFloat(current),
+      imageEmoji: emoji,
+      notes: notes.trim() || undefined,
+      deadline: hasDeadline && deadline ? new Date(deadline).toISOString() : undefined,
+      currency,
     });
     setIsSaving(false);
   };
+
+  // Встановлюємо дату за замовчуванням (завтра)
+  React.useEffect(() => {
+    if (hasDeadline && !deadline) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 30);
+      setDeadline(tomorrow.toISOString().split('T')[0]);
+    }
+  }, [hasDeadline]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl bg-background border border-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="p-5 border-b border-border flex justify-between items-center">
           <h2 className="text-xl font-semibold">Нова ціль</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-secondary transition-colors">✕</button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-secondary">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
@@ -322,8 +406,12 @@ const AddGoalModal: React.FC<{ onClose: () => void; onSave: (data: any) => void;
             />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border hover:bg-secondary transition-colors">Скасувати</button>
-            <button type="submit" disabled={isSaving} className="flex-1 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50">{isSaving ? 'Додавання...' : 'Додати ціль'}</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border hover:bg-secondary">
+              Скасувати
+            </button>
+            <button type="submit" disabled={isSaving} className="flex-1 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50">
+              {isSaving ? 'Додавання...' : 'Додати ціль'}
+            </button>
           </div>
         </form>
       </div>
@@ -331,7 +419,14 @@ const AddGoalModal: React.FC<{ onClose: () => void; onSave: (data: any) => void;
   );
 };
 
-const GoalDetailModal: React.FC<{ goal: SavingsGoal; currency: string; onClose: () => void; onUpdate: (goal: SavingsGoal, amount: number) => void }> = ({ goal, currency, onClose, onUpdate }) => {
+// Модальне вікно деталей цілі
+const GoalDetailModal: React.FC<{
+  goal: Goal;
+  currency: string;
+  onClose: () => void;
+  onUpdate: (goal: Goal, amount: number) => void;
+  formatDate: (date: Date | null | undefined) => string;
+}> = ({ goal, currency, onClose, onUpdate, formatDate }) => {
   const [amount, setAmount] = useState(goal.currentAmount.toString());
 
   const handleUpdate = () => {
@@ -365,28 +460,34 @@ const GoalDetailModal: React.FC<{ goal: SavingsGoal; currency: string; onClose: 
               <span className="font-semibold">{currency}{goal.targetAmount.toFixed(0)}</span>
             </div>
             <div className="h-3 bg-secondary rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${goal.isCompleted ? 'bg-green-500' : 'bg-primary'}`} style={{ width: `${goal.progress * 100}%` }} />
+              <div
+                className={`h-full rounded-full transition-all ${goal.isCompleted ? 'bg-green-500' : 'bg-primary'}`}
+                style={{ width: `${goal.progress * 100}%` }}
+              />
             </div>
             <div className="flex justify-between text-sm">
               <span>{Math.round(goal.progress * 100)}%</span>
               {!goal.isCompleted && <span>залишилось {currency}{goal.remaining.toFixed(0)}</span>}
             </div>
           </div>
+          
           {goal.deadline && (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
               <span className="text-xl">📅</span>
               <div>
                 <p className="text-xs text-muted-foreground">Дедлайн</p>
-                <p className="font-medium">{format(goal.deadline, 'dd MMMM yyyy', { locale: uk })}</p>
+                <p className="font-medium">{formatDate(goal.deadline)}</p>
               </div>
             </div>
           )}
+          
           {goal.notes && (
             <div className="p-3 rounded-xl bg-secondary/30">
               <p className="text-xs text-muted-foreground mb-1">Нотатки</p>
               <p className="text-sm">{goal.notes}</p>
             </div>
           )}
+          
           {!goal.isCompleted && (
             <div className="pt-2">
               <label className="block text-sm font-medium mb-2">Оновити накопичення</label>
@@ -398,10 +499,13 @@ const GoalDetailModal: React.FC<{ goal: SavingsGoal; currency: string; onClose: 
                   onChange={(e) => setAmount(e.target.value)}
                   className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
-                <button onClick={handleUpdate} className="px-5 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90">Оновити</button>
+                <button onClick={handleUpdate} className="px-5 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90">
+                  Оновити
+                </button>
               </div>
             </div>
           )}
+          
           {goal.isCompleted && (
             <div className="text-center p-4 rounded-xl bg-green-500/10">
               <span className="text-2xl">🎉</span>
@@ -413,3 +517,5 @@ const GoalDetailModal: React.FC<{ goal: SavingsGoal; currency: string; onClose: 
     </div>
   );
 };
+
+export default GoalsView;
