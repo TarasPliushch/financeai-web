@@ -271,3 +271,36 @@ export const ProfileView: React.FC = () => {
 function loadAvatar() {
   // Ця функція має бути визначена в компоненті, але для простоти залишаємо
 }
+
+      {/* Security Section */}
+      <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h3 className="font-semibold flex items-center gap-2">
+            <span className="text-xl">🔒</span> Безпека
+          </h3>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="flex justify-between items-center p-3 rounded-xl bg-white/5">
+            <span className="flex items-center gap-2">
+              <span className="text-lg">🔐</span> PIN-код
+            </span>
+            <button
+              onClick={() => setShowPinSetup(true)}
+              className="text-sm text-primary hover:underline"
+            >
+              {user?.pinHash ? 'Змінити PIN' : 'Встановити PIN'}
+            </button>
+          </div>
+        </div>
+      </div>
+const [showPinSetup, setShowPinSetup] = useState(false);
+      {showPinSetup && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-background border border-border shadow-2xl">
+            <PinSetupView
+              mode={user?.pinHash ? 'change' : 'setup'}
+              onSuccess={() => setShowPinSetup(false)}
+            />
+          </div>
+        </div>
+      )}

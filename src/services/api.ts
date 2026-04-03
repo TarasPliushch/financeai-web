@@ -62,28 +62,34 @@ class ApiService {
     return res.data;
   }
 
-  async verifyEmail(code: string) {
-    const res = await this.api.post('/auth/verify-email', { code });
+  // ==================== PIN & BIOMETRICS ====================
+  async setPin(pinHash: string) {
+    const res = await this.api.put('/auth/pin', { pinHash });
     return res.data;
   }
 
-  async resendVerification() {
-    const res = await this.api.post('/auth/resend-verification', {});
+  async verifyPin(pin: string) {
+    const res = await this.api.post('/auth/verify-pin', { pin });
     return res.data;
   }
 
-  async verifyTwoFactor(email: string, code: string) {
-    const res = await this.api.post('/auth/verify-2fa', { email, code });
+  async getBiometricChallenge() {
+    const res = await this.api.get('/auth/biometric/challenge');
     return res.data;
   }
 
-  async requestPasswordReset(email: string) {
-    const res = await this.api.post('/auth/forgot-password', { email });
+  async registerBiometric(credential: any) {
+    const res = await this.api.post('/auth/biometric/register', credential);
     return res.data;
   }
 
-  async resetPassword(email: string, code: string, newPassword: string) {
-    const res = await this.api.post('/auth/reset-password', { email, code, newPassword });
+  async authenticateBiometric(credential: any) {
+    const res = await this.api.post('/auth/biometric/authenticate', credential);
+    return res.data;
+  }
+
+  async hasBiometric() {
+    const res = await this.api.get('/auth/biometric/status');
     return res.data;
   }
 
