@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { BiometricAuth } from './BiometricAuth';
+import { PinRecoveryView } from './PinRecoveryView';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
@@ -21,6 +22,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { user, refreshUser } = useAuth();
 
@@ -97,8 +99,11 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     inputRef.current?.focus();
   };
 
-  // Розміри кнопок для мобільних
   const buttonSize = isMobile ? 'w-14 h-14 text-xl' : 'w-16 h-16 text-2xl';
+
+  if (showRecovery) {
+    return <PinRecoveryView onSuccess={onSuccess} onCancel={() => setShowRecovery(false)} />;
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
@@ -147,7 +152,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
                 {num}
               </button>
             ))}
-            {/* Кнопка очищення - іконка кошика */}
             <button
               onClick={handleClear}
               className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 transition-colors flex items-center justify-center`}
@@ -164,7 +168,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
             >
               0
             </button>
-            {/* Кнопка видалення - іконка стрілки назад */}
             <button
               onClick={handleDelete}
               className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 transition-colors flex items-center justify-center`}
@@ -185,6 +188,14 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           className="mt-6 w-full py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all"
         >
           {isLoading ? 'Перевірка...' : 'Увійти'}
+        </button>
+
+        {/* Кнопка "Забули PIN?" */}
+        <button
+          onClick={() => setShowRecovery(true)}
+          className="mt-2 w-full py-1.5 text-xs text-primary hover:underline transition-colors"
+        >
+          Забули PIN-код?
         </button>
 
         <BiometricAuth onSuccess={onSuccess} />
