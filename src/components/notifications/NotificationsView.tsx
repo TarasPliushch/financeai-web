@@ -1,9 +1,8 @@
-// src/components/notifications/NotificationsView.tsx
 import React, { useState, useEffect } from 'react';
 import { AppNotification } from '../../types';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { uk } from 'date-fns/locale';
 
 export const NotificationsView: React.FC = () => {
@@ -55,7 +54,7 @@ export const NotificationsView: React.FC = () => {
   const handleMarkRead = async (notification: AppNotification) => {
     if (notification.isRead) return;
     try {
-      await api.markAllNotificationsRead(); // API doesn't have single mark read
+      await api.markAllNotificationsRead();
       setNotifications(notifications.map(n =>
         n.id === notification.id ? { ...n, isRead: true } : n
       ));
@@ -88,12 +87,12 @@ export const NotificationsView: React.FC = () => {
     switch (type) {
       case 'expenseAdded':
       case 'expenseEdited':
-        return 'text-red-500';
+        return 'text-red-400';
       case 'incomeAdded':
       case 'incomeEdited':
-        return 'text-green-500';
+        return 'text-green-400';
       case 'goalCompleted':
-        return 'text-green-500';
+        return 'text-green-400';
       default:
         return 'text-primary';
     }
@@ -143,13 +142,12 @@ export const NotificationsView: React.FC = () => {
   const grouped = groupByDate(notifications);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+    <div className="space-y-6 animate-fade-in max-w-3xl mx-auto">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Сповіщення</h1>
           {unreadCount > 0 && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mt-1">
               {unreadCount} непрочитаних
             </p>
           )}
@@ -164,12 +162,11 @@ export const NotificationsView: React.FC = () => {
         )}
       </div>
 
-      {/* Notifications List */}
       {notifications.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-16 bg-white/5 rounded-xl">
           <div className="text-6xl mb-4">🔕</div>
           <p className="text-muted-foreground">Немає сповіщень</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mt-1">
             Тут з'являться сповіщення про ваші дії
           </p>
         </div>
@@ -177,7 +174,7 @@ export const NotificationsView: React.FC = () => {
         <div className="space-y-4">
           {grouped.map(group => (
             <div key={group.date}>
-              <h3 className="text-sm font-medium text-muted-foreground mb-2 px-2">
+              <h3 className="text-sm font-medium text-muted-foreground mb-3 px-2">
                 {group.date}
               </h3>
               <div className="space-y-2">
@@ -185,9 +182,9 @@ export const NotificationsView: React.FC = () => {
                   <div
                     key={notif.id}
                     onClick={() => handleMarkRead(notif)}
-                    className={`flex items-start gap-3 p-4 rounded-xl transition-colors cursor-pointer ${
+                    className={`group flex items-start gap-4 p-4 rounded-xl transition-all cursor-pointer ${
                       notif.isRead
-                        ? 'bg-secondary/30 border border-border'
+                        ? 'bg-white/5 border border-white/5'
                         : 'bg-primary/5 border border-primary/20'
                     }`}
                   >
@@ -210,9 +207,16 @@ export const NotificationsView: React.FC = () => {
                         e.stopPropagation();
                         handleDelete(notif);
                       }}
-                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                      className="p-2 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Видалити"
                     >
-                      🗑️
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 7h16"/>
+                        <path d="M10 11v6"/>
+                        <path d="M14 11v6"/>
+                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/>
+                        <path d="M9 3h6"/>
+                      </svg>
                     </button>
                   </div>
                 ))}
