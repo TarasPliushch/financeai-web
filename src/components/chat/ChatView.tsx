@@ -73,37 +73,12 @@ export const ChatView: React.FC = () => {
     } catch (error) { toast.error('Помилка створення чату'); }
   };
 
-  // ==================== ПРЯМЕ ДОДАВАННЯ ЦІЛІ (ТЕСТ) ====================
-  const testAddGoal = async () => {
-    console.log('🧪 ТЕСТ: Пряме додавання цілі через API');
-    try {
-      const goalData = {
-        name: "Тестова ціль " + new Date().toLocaleTimeString(),
-        targetAmount: 5000,
-        currentAmount: 0,
-        imageEmoji: "🎯",
-        notes: "Тест з чату",
-        currency: user?.currency || '₴'
-      };
-      console.log('📤 Дані:', goalData);
-      const response = await api.createGoal(goalData);
-      console.log('📥 Відповідь:', response);
-      if (response.success) {
-        toast.success('Тестову ціль додано!');
-      } else {
-        toast.error('Помилка: ' + response.error);
-      }
-    } catch (err) {
-      console.error('❌ Помилка:', err);
-      toast.error('Помилка: ' + (err as Error).message);
-    }
-  };
-
   // ==================== ВИКОНАННЯ ДІЙ ====================
   const executeAction = async (action: string, params: any): Promise<string | null> => {
     console.log('🚀 Виконую дію:', action, params);
     
     try {
+      // ДОДАТИ ЦІЛЬ
       if (action === 'ADD_GOAL') {
         const goalData = {
           name: params.name,
@@ -111,18 +86,19 @@ export const ChatView: React.FC = () => {
           currentAmount: 0,
           imageEmoji: params.emoji || '🎯',
           notes: params.notes || '',
-          deadline: params.deadline,
+          deadline: params.deadline || null,
           currency: user?.currency || '₴'
         };
         console.log('📤 Надсилаємо ціль:', goalData);
         const response = await api.createGoal(goalData);
         console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `✅ Ціль "${params.name}" на ${params.amount}${user?.currency || '₴'} додано!`;
+          return `✅ Ціль "${params.name}" на ${params.amount}${user?.currency || '₴'} додано до розділу Цілі!`;
         }
         return `❌ Помилка: ${response.error || 'невідома помилка'}`;
       }
       
+      // ДОДАТИ ВИТРАТУ
       if (action === 'ADD_EXPENSE') {
         const expenseData = {
           title: params.title,
@@ -130,27 +106,67 @@ export const ChatView: React.FC = () => {
           category: params.category || 'Інше',
           date: new Date().toISOString(),
           notes: params.notes || '',
-          isIncome: params.isIncome === true,
+          isIncome: false,
           currency: user?.currency || '₴'
         };
         console.log('📤 Надсилаємо витрату:', expenseData);
         const response = await api.createExpense(expenseData);
         console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `✅ Витрату "${params.title}" на ${params.amount}${user?.currency || '₴'} додано!`;
+          return `✅ Витрату "${params.title}" на ${params.amount}${user?.currency || '₴'} додано до розділу Фінанси!`;
         }
         return `❌ Помилка: ${response.error || 'невідома помилка'}`;
       }
       
+      // ДОДАТИ ДОХІД
+      if (action === 'ADD_INCOME') {
+        const incomeData = {
+          title: params.title,
+          amount: params.amount,
+          category: params.category || 'Зарплата',
+          date: new Date().toISOString(),
+          notes: params.notes || '',
+          isIncome: true,
+          currency: user?.currency || '₴'
+        };
+        console.log('📤 Надсилаємо дохід:', incomeData);
+        const response = await api.createExpense(incomeData);
+        console.log('📥 Відповідь сервера:', response);
+        if (response.success) {
+          return `✅ Дохід "${params.title}" на ${params.amount}${user?.currency || '₴'} додано до розділу Фінанси!`;
+        }
+        return `❌ Помилка: ${response.error || 'невідома помилка'}`;
+      }
+      
+      // СТВОРИТИ СПИСОК ПОКУПОК
       if (action === 'CREATE_SHOPPING_LIST') {
         const listData = { name: params.name, reminderDate: null, reminderLeadMinutes: 30 };
         console.log('📤 Створюємо список:', listData);
         const response = await api.createShoppingList(listData);
         console.log('📥 Відповідь сервера:', response);
         if (response.success) {
-          return `🛒 Список покупок "${params.name}" створено!`;
+          return `🛒 Список покупок "${params.name}" створено! Додавайте товари командою "додай до списку ${params.name} товар"`;
         }
         return `❌ Помилка: ${response.error || 'невідома помилка'}`;
+      }
+      
+      // ДОДАТИ ТОВАРИ ДО СПИСКУ
+      if (action === 'ADD_SHOPPING_ITEMS') {
+        const listsResponse = await api.getShoppingLists();
+        if (listsResponse.success && listsResponse.lists) {
+          const list = listsResponse.lists.find((l: any) => l.name.toLowerCase() === params.listName.toLowerCase());
+          if (list) {
+            let successCount = 0;
+            for (const itemName of params.items) {
+              const itemData = { name: itemName.trim(), quantity: '', isCompleted: false };
+              const itemResponse = await api.addShoppingItem(list.id, itemData);
+              if (itemResponse.success) successCount++;
+            }
+            return `✅ Додано ${successCount}/${params.items.length} товарів до списку "${params.listName}"!`;
+          }
+          return `❌ Список "${params.listName}" не знайдено. Спочатку створіть список командою "створи список покупок ${params.listName}"`;
+        }
+        return `❌ Помилка отримання списків`;
       }
       
       return null;
@@ -167,7 +183,6 @@ export const ChatView: React.FC = () => {
     // Шукаємо {{ADD_GOAL:назва|сума|емодзі|нотатки|deadline}}
     const goalMatch = text.match(/\{\{ADD_GOAL:([^|]+)\|([^|]+)\|([^|]*)\|([^|]*)\|?([^}]*)\}\}/i);
     if (goalMatch) {
-      console.log('✅ Знайдено ADD_GOAL:', goalMatch);
       actions.push({
         action: 'ADD_GOAL',
         params: {
@@ -180,18 +195,30 @@ export const ChatView: React.FC = () => {
       });
     }
     
-    // Шукаємо {{ADD_EXPENSE:назва|сума|категорія|нотатки|isIncome}}
-    const expenseMatch = text.match(/\{\{ADD_EXPENSE:([^|]+)\|([^|]+)\|([^|]+)\|([^|]*)\|([^}]+)\}\}/i);
+    // Шукаємо {{ADD_EXPENSE:назва|сума|категорія|нотатки}}
+    const expenseMatch = text.match(/\{\{ADD_EXPENSE:([^|]+)\|([^|]+)\|([^|]+)\|([^}]*)\}\}/i);
     if (expenseMatch) {
-      console.log('✅ Знайдено ADD_EXPENSE:', expenseMatch);
       actions.push({
         action: 'ADD_EXPENSE',
         params: {
           title: expenseMatch[1].trim(),
           amount: parseFloat(expenseMatch[2]),
           category: expenseMatch[3].trim(),
-          notes: expenseMatch[4].trim(),
-          isIncome: expenseMatch[5].trim().toLowerCase() === 'true'
+          notes: expenseMatch[4].trim()
+        }
+      });
+    }
+    
+    // Шукаємо {{ADD_INCOME:назва|сума|категорія|нотатки}}
+    const incomeMatch = text.match(/\{\{ADD_INCOME:([^|]+)\|([^|]+)\|([^|]+)\|([^}]*)\}\}/i);
+    if (incomeMatch) {
+      actions.push({
+        action: 'ADD_INCOME',
+        params: {
+          title: incomeMatch[1].trim(),
+          amount: parseFloat(incomeMatch[2]),
+          category: incomeMatch[3].trim(),
+          notes: incomeMatch[4].trim()
         }
       });
     }
@@ -199,10 +226,22 @@ export const ChatView: React.FC = () => {
     // Шукаємо {{CREATE_LIST:назва}}
     const listMatch = text.match(/\{\{CREATE_LIST:([^}]+)\}\}/i);
     if (listMatch) {
-      console.log('✅ Знайдено CREATE_LIST:', listMatch);
       actions.push({
         action: 'CREATE_SHOPPING_LIST',
         params: { name: listMatch[1].trim() }
+      });
+    }
+    
+    // Шукаємо {{ADD_ITEMS:назва_списку|товар1,товар2}}
+    const itemsMatch = text.match(/\{\{ADD_ITEMS:([^|]+)\|([^}]+)\}\}/i);
+    if (itemsMatch) {
+      const items = itemsMatch[2].split(',').map(i => i.trim());
+      actions.push({
+        action: 'ADD_SHOPPING_ITEMS',
+        params: {
+          listName: itemsMatch[1].trim(),
+          items: items
+        }
       });
     }
     
@@ -231,6 +270,19 @@ export const ChatView: React.FC = () => {
       setIsStreaming(true);
       setStreamingText('');
       
+      // Отримуємо поточну статистику для контексту
+      let statsText = '';
+      try {
+        const expenses = await api.getExpenses();
+        const goals = await api.getGoals();
+        const totalExpenses = (expenses.expenses || []).filter((e: any) => !e.isIncome).reduce((s: number, e: any) => s + e.amount, 0);
+        const totalIncome = (expenses.expenses || []).filter((e: any) => e.isIncome).reduce((s: number, e: any) => s + e.amount, 0);
+        statsText = `Поточні дані користувача:
+- Загальні витрати: ${totalExpenses}${user?.currency || '₴'}
+- Загальні доходи: ${totalIncome}${user?.currency || '₴'}
+- Кількість цілей: ${(goals.goals || []).length}`;
+      } catch (e) { console.log('Не вдалося отримати статистику'); }
+      
       console.log('🤖 Запит до DeepSeek API...');
       const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
@@ -240,19 +292,35 @@ export const ChatView: React.FC = () => {
           messages: [
             { 
               role: 'system', 
-              content: `Ти Lis — фінансовий асистент. Відповідай українською, використовуй емодзі.
-Якщо користувач просить додати ціль, витрату або список покупок - ОБОВ'ЯЗКОВО додай в кінці відповіді спеціальний тег:
-- Для цілі: {{ADD_GOAL:назва|сума|🎯||none}}
-- Для витрати: {{ADD_EXPENSE:назва|сума|категорія||false}}
-- Для списку: {{CREATE_LIST:назва}}
+              content: `Ти Lis — фінансовий асистент. Відповідай українською коротко, використовуй емодзі.
 
-Наприклад, якщо просять додати ціль "Телефон" на 10000, відповідай: "Додаю ціль! {{ADD_GOAL:Телефон|10000|🎯||none}}"`
+${statsText}
+
+КОЛИ КОРИСТУВАЧ ПРОСИТЬ ДОДАТИ ДАНІ - ТИ ОБОВ'ЯЗКОВО ДОДАЄШ В КІНЦІ ВІДПОВІДІ ОДИН З ЦИХ ТЕГІВ:
+
+1. Для цілі: {{ADD_GOAL:назва|сума|емодзі|нотатки|none}}
+   Приклад: "Додаю ціль! {{ADD_GOAL:Новий телефон|15000|📱||none}}"
+
+2. Для витрати: {{ADD_EXPENSE:назва|сума|категорія|нотатки}}
+   Приклад: "Додаю витрату! {{ADD_EXPENSE:Кава|50|Їжа|}}"
+
+3. Для доходу: {{ADD_INCOME:назва|сума|категорія|нотатки}}
+   Приклад: "Додаю дохід! {{ADD_INCOME:Зарплата|15000|Зарплата|}}"
+
+4. Для списку покупок: {{CREATE_LIST:назва}}
+   Приклад: "Створюю список! {{CREATE_LIST:Продукти}}"
+
+5. Для товарів у список: {{ADD_ITEMS:назва_списку|товар1, товар2, товар3}}
+   Приклад: "Додаю товари! {{ADD_ITEMS:Продукти|молоко, хліб, яйця}}"
+
+ТЕГ ЗАВЖДИ ДОДАЄТЬСЯ В КІНЦІ ВІДПОВІДІ НА ОКРЕМОМУ РЯДКУ.
+Після виконання дії система автоматично підтвердить додавання.`
             },
             ...messages.slice(-8).map(m => ({ role: m.isUser ? 'user' : 'assistant', content: m.content })),
             { role: 'user', content: text }
           ],
           temperature: 0.7,
-          max_tokens: 500,
+          max_tokens: 600,
           stream: true,
         }),
       });
@@ -353,11 +421,6 @@ export const ChatView: React.FC = () => {
           <div className="p-4 border-t border-border">
             <button onClick={createNewSession} className="w-full py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 transition-opacity">+ Новий чат</button>
           </div>
-          <div className="p-4 border-t border-border">
-            <button onClick={testAddGoal} className="w-full py-2.5 rounded-xl bg-green-500 text-white font-medium hover:opacity-90 transition-opacity">
-              🧪 Тест: Додати ціль
-            </button>
-          </div>
         </div>
       </div>
 
@@ -375,6 +438,16 @@ export const ChatView: React.FC = () => {
               <div className="text-6xl mb-4">🤖</div>
               <p className="text-muted-foreground">Привіт! Я Lis, твій фінансовий асистент</p>
               <p className="text-sm text-muted-foreground mt-2">Можу додавати витрати, доходи, цілі та списки покупок за командою</p>
+              <div className="mt-6 p-4 bg-secondary/30 rounded-xl max-w-md mx-auto">
+                <p className="text-xs font-medium text-muted-foreground mb-2">📝 Приклади команд:</p>
+                <ul className="text-xs text-left space-y-1 text-muted-foreground">
+                  <li>• "додай витрату Кава на 50 грн"</li>
+                  <li>• "додай дохід Зарплата на 15000 грн"</li>
+                  <li>• "додай ціль Телефон на 15000"</li>
+                  <li>• "створи список покупок Продукти"</li>
+                  <li>• "додай до списку Продукти молоко, хліб, яйця"</li>
+                </ul>
+              </div>
             </div>
           )}
           {messages.map(m => (
