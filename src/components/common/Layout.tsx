@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
-// Гарні іконки для навігації
 const navigation = [
   { name: 'Фінанси', path: '/finances', icon: '💰', iconActive: '💎' },
   { name: 'Цілі', path: '/goals', icon: '🎯', iconActive: '🏆' },
@@ -17,8 +16,9 @@ export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isChatPage = location.pathname === '/chat';
   
-  // Стан для аватарки
   const [avatarDisplay, setAvatarDisplay] = useState<string>('👤');
   const [avatarImageUrl, setAvatarImageUrl] = useState<string | null>(null);
 
@@ -50,34 +50,21 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-30 w-72 transform bg-gradient-to-b from-secondary/95 to-secondary/80 backdrop-blur-xl transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
+      <aside className={`fixed inset-y-0 left-0 z-30 w-72 transform bg-gradient-to-b from-secondary/95 to-secondary/80 backdrop-blur-xl transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-full flex-col">
-          {/* Logo */}
           <div className="flex h-20 items-center justify-center border-b border-white/10">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center shadow-lg">
                 <span className="text-2xl">🧠</span>
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-                FinanceAI
-              </h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">FinanceAI</h1>
             </div>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
             {navigation.map((item) => (
               <NavLink
@@ -92,9 +79,7 @@ export const Layout: React.FC = () => {
                 }
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="text-2xl group-hover:scale-110 transition-transform">
-                  {({ isActive }) => isActive ? item.iconActive : item.icon}
-                </span>
+                <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
                 <span>{item.name}</span>
                 {({ isActive }) => isActive && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500" />
@@ -103,13 +88,8 @@ export const Layout: React.FC = () => {
             ))}
           </nav>
 
-          {/* User Section - Avatar + Theme + Logout */}
           <div className="border-t border-white/10 p-4 space-y-3">
-            {/* Avatar Button - перехід в профіль */}
-            <button
-              onClick={goToProfile}
-              className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 group"
-            >
+            <button onClick={goToProfile} className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 group">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center overflow-hidden shadow-lg">
                 {avatarImageUrl ? (
                   <img src={avatarImageUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -124,28 +104,19 @@ export const Layout: React.FC = () => {
               <span className="text-muted-foreground group-hover:translate-x-1 transition-transform">→</span>
             </button>
             
-            {/* Theme toggle */}
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/5">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🎨</span>
                 <span className="text-sm text-muted-foreground">Тема</span>
               </div>
-              <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as any)}
-                className="bg-transparent border-none text-sm focus:outline-none cursor-pointer"
-              >
+              <select value={theme} onChange={(e) => setTheme(e.target.value as any)} className="bg-transparent border-none text-sm focus:outline-none cursor-pointer">
                 <option value="system">🌓 Системна</option>
                 <option value="light">☀️ Світла</option>
                 <option value="dark">🌙 Темна</option>
               </select>
             </div>
             
-            {/* Logout button */}
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-all duration-200 text-red-400"
-            >
+            <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-all duration-200 text-red-400">
               <span className="text-xl">🚪</span>
               <span className="text-sm font-medium">Вийти</span>
             </button>
@@ -153,14 +124,9 @@ export const Layout: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="lg:pl-72">
-        {/* Mobile header */}
+      <div className={`lg:pl-72 ${isChatPage ? 'p-0' : 'p-4 lg:p-6'}`}>
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-white/10 bg-background/80 backdrop-blur-lg px-4 lg:hidden">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="rounded-xl p-2 hover:bg-white/10 transition-colors"
-          >
+          <button onClick={() => setSidebarOpen(true)} className="rounded-xl p-2 hover:bg-white/10 transition-colors">
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -174,8 +140,7 @@ export const Layout: React.FC = () => {
           <div className="w-8" />
         </header>
 
-        {/* Page content */}
-        <main className="p-4 lg:p-6">
+        <main className={isChatPage ? 'h-[calc(100vh-64px)]' : ''}>
           <Outlet />
         </main>
       </div>
