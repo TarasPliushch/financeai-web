@@ -29,7 +29,6 @@ export const useAuth = () => {
   return context;
 };
 
-// Ключ для збереження часу входу
 const LOGIN_TIME_KEY = 'loginTimestamp';
 const SESSION_DURATION_DAYS = 30;
 const SESSION_DURATION_MS = SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000;
@@ -41,56 +40,67 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [pendingTwoFactorEmail, setPendingTwoFactorEmail] = useState('');
 
   useEffect(() => { 
+    console.log('🔐 AuthProvider mounted, loading user...');
     loadUser(); 
   }, []);
 
-  // Перевірка, чи не закінчилася сесія (30 днів)
   const checkSessionExpiry = (): boolean => {
     const loginTime = localStorage.getItem(LOGIN_TIME_KEY);
-    if (!loginTime) return false;
+    if (!loginTime) {
+      console.log('🔐 No login time found');
+      return false;
+    }
     
     const loginTimestamp = parseInt(loginTime, 10);
     const now = Date.now();
     const elapsed = now - loginTimestamp;
+    const daysElapsed = elapsed / (24 * 60 * 60 * 1000);
+    
+    console.log(`🔐 Session age: ${daysElapsed.toFixed(1)} days`);
     
     if (elapsed >= SESSION_DURATION_MS) {
-      // Сесія закінчилася
-      console.log('⏰ Session expired after 30 days');
-      logout();
+      console.log('🔐 Session expired after 30 days');
       return true;
     }
     return false;
   };
 
   const loadUser = async () => {
+    console.log('🔐 loadUser started');
+    const token = api.getToken();
+    console.log('🔐 Token exists:', !!token);
+    
+    if (!token) {
+      console.log('🔐 No token, finishing loading');
+      setIsLoading(false);
+      return;
+    }
+    
+    // Перевіряємо сесію
+    if (checkSessionExpiry()) {
+      console.log('🔐 Session expired, logging out');
+      logout();
+      setIsLoading(false);
+      return;
+    }
+    
     try {
-      const token = api.getToken();
-      if (token) {
-        // Перевіряємо, чи не закінчилася сесія
-        if (checkSessionExpiry()) {
-          setIsLoading(false);
-          return;
-        }
-        
-        const response = await api.getCurrentUser();
-        if (response.success && response.user) {
-          setUser(response.user);
-          api.setUserId(response.user.id);
-          console.log('✅ Session restored, user:', response.user.email);
-        } else {
-          logout();
-        }
-      }
-    } catch (error) { 
-      console.error('Error loading user:', error);
-      // При помилці мережі не виходимо з акаунту
-      const token = api.getToken();
-      if (token) {
-        // Якщо є токен, але сервер не відповів, пробуємо зберегти сесію
-        console.log('Network error, keeping session');
+      console.log('🔐 Fetching current user...');
+      const response = await api.getCurrentUser();
+      console.log('🔐 Response:', response);
+      
+      if (response.success && response.user) {
+        setUser(response.user);
+        api.setUserId(response.user.id);
+        console.log('✅ User loaded:', response.user.email);
       } else {
+        console.log('🔐 Failed to load user, response not success');
         logout();
       }
+    } catch (error) {
+      console.error('🔐 Error loading user:', error);
+      // Якщо помилка мережі, не виходимо з акаунту, але токен залишаємо
+      console.log('🔐 Network error, keeping token but user is null');
     }
     finally { 
       setIsLoading(false); 
@@ -123,10 +133,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         api.setUserId(response.user.id);
         if (response.user.isEmailVerified === false) setRequiresEmailVerification(true);
         
-        // Зберігаємо час входу для сесії
         localStorage.setItem(LOGIN_TIME_KEY, Date.now().toString());
         localStorage.setItem('lastEmail', email);
         
+        console.log('✅ Login successful, token saved');
         toast.success('Вхід виконано!');
         return true;
       }
@@ -185,13 +195,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
+    console.log('🔐 Logging out');
     api.setToken(null);
     api.setUserId(null);
     setUser(null);
     setRequiresEmailVerification(false);
     sessionStorage.removeItem('pinVerified');
     localStorage.removeItem('pinUnlocked');
-    // Не видаляємо loginTimestamp та lastEmail, щоб при наступному вході були дані
     toast.success('Ви вийшли');
   };
 

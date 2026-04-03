@@ -15,18 +15,18 @@ class ApiService {
 
     this.api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
       const token = this.getToken();
+      console.log('🔐 API Request:', config.url, 'Token exists:', !!token);
       if (token) config.headers.Authorization = `Bearer ${token}`;
       const userId = this.getUserId();
       if (userId) config.headers['user-id'] = userId;
       return config;
     });
 
-    // Перехоплюємо помилки авторизації, але не виходимо при помилках мережі
     this.api.interceptors.response.use(
       (response) => response,
       (error) => {
+        console.log('🔐 API Response Error:', error.response?.status, error.config?.url);
         if (error.response?.status === 401) {
-          // Тільки при 401 помилці виходимо
           console.log('🔐 401 Unauthorized - logging out');
           this.setToken(null);
           this.setUserId(null);
@@ -39,12 +39,19 @@ class ApiService {
 
   setToken(token: string | null) {
     this.token = token;
-    if (token) localStorage.setItem('authToken', token);
-    else localStorage.removeItem('authToken');
+    if (token) {
+      localStorage.setItem('authToken', token);
+      console.log('🔐 Token saved to localStorage');
+    } else {
+      localStorage.removeItem('authToken');
+      console.log('🔐 Token removed from localStorage');
+    }
   }
 
   getToken(): string | null {
-    return this.token || localStorage.getItem('authToken');
+    const token = this.token || localStorage.getItem('authToken');
+    console.log('🔐 Getting token:', token ? `${token.substring(0, 20)}...` : 'null');
+    return token;
   }
 
   setUserId(userId: string | null) {
@@ -234,3 +241,9 @@ class ApiService {
 }
 
 export const api = new ApiService();
+
+// Додаємо обробник події authError
+window.addEventListener('authError', () => {
+  console.log('🔐 Auth error event received');
+  window.location.href = '/login';
+});
