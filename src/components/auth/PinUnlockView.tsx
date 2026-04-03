@@ -8,23 +8,16 @@ interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
-const hashPin = async (pin: string, userId: string): Promise<string> => {
-  const input = userId + pin;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-};
-
 export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState(3);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { user, refreshUser } = useAuth();
+  const { checkPin } = useAuth();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -52,23 +45,23 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
-      await refreshUser();
+      const result = await checkPin(pin);
       
-      const storedHash = user?.pinHash;
-      
-      if (!storedHash) {
-        setError('PIN-код не встановлено');
-        setIsLoading(false);
-        return;
-      }
-      
-      const userId = user?.id || '';
-      const calculatedHash = await hashPin(pin, userId);
-      
-      if (calculatedHash === storedHash) {
+      if (result.success) {
+        toast.success('PIN-код правильний');
         onSuccess();
+      } else if (result.blocked) {
+        setIsBlocked(true);
+        setError(result.error || 'Акаунт заблоковано. Перевірте email для розблокування.');
+        toast.error('Акаунт заблоковано! Перевірте email.');
       } else {
-        setError('Невірний PIN-код');
+        setError(result.error || 'Невірний PIN-код');
+        if (result.attemptsLeft !== undefined) {
+          setAttemptsLeft(result.attemptsLeft);
+          if (result.attemptsLeft <= 0) {
+            setIsBlocked(true);
+          }
+        }
         setPin('');
         inputRef.current?.focus();
       }
@@ -81,7 +74,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   };
 
   const handleNumberClick = (num: number) => {
-    if (pin.length < 6) {
+    if (pin.length < 6 && !isBlocked) {
       setPin(pin + num.toString());
       setError('');
     }
@@ -105,6 +98,27 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     return <PinRecoveryView onSuccess={onSuccess} onCancel={() => setShowRecovery(false)} />;
   }
 
+  if (isBlocked) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold mb-2">Акаунт заблоковано</h2>
+          <p className="text-muted-foreground mb-4">
+            Ваш акаунт тимчасово заблоковано через 3 невдалі спроби введення PIN-коду.
+            <br />Перевірте електронну пошту для розблокування.
+          </p>
+          <button
+            onClick={() => window.location.href = '/login'}
+            className="w-full py-3 rounded-xl bg-primary text-white font-medium"
+          >
+            Повернутися до входу
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
       <div className="w-full max-w-md p-4">
@@ -116,7 +130,10 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
             </svg>
           </div>
           <h2 className="text-xl font-bold">Введіть PIN-код</h2>
-          <p className="text-xs text-muted-foreground mt-1">Для доступу до застосунку</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Для доступу до застосунку
+            {attemptsLeft < 3 && <span className="text-red-500 block">Залишилось спроб: {attemptsLeft}</span>}
+          </p>
         </div>
 
         <input

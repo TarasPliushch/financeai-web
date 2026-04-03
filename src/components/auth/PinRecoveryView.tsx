@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 import { PinSetupView } from './PinSetupView';
@@ -15,7 +14,6 @@ export const PinRecoveryView: React.FC<PinRecoveryViewProps> = ({ onSuccess, onC
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
-  const { user } = useAuth();
 
   const handleRequestCode = async () => {
     if (!email) {

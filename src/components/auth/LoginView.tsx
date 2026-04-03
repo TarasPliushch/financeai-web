@@ -11,7 +11,7 @@ export const LoginView: React.FC = () => {
   const [show2FA, setShow2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
-  const { login, pendingTwoFactorEmail } = useAuth();
+  const { login, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,13 +20,6 @@ export const LoginView: React.FC = () => {
       setEmail(savedEmail);
     }
   }, []);
-
-  useEffect(() => {
-    if (pendingTwoFactorEmail) {
-      setPendingEmail(pendingTwoFactorEmail);
-      setShow2FA(true);
-    }
-  }, [pendingTwoFactorEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,13 +39,10 @@ export const LoginView: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      const response = await api.verifyTwoFactor(pendingEmail, twoFactorCode);
-      if (response.success && response.token) {
-        api.setToken(response.token);
-        toast.success('Вхід виконано!');
+      const success = await verifyTwoFactor(pendingEmail, twoFactorCode);
+      if (success) {
         navigate('/');
       } else {
-        toast.error(response.error || 'Невірний код');
         setTwoFactorCode('');
       }
     } catch (error) {
@@ -61,6 +51,24 @@ export const LoginView: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // Перевіряємо, чи потрібна 2FA
+  useEffect(() => {
+    const check2FA = async () => {
+      try {
+        const response = await api.login(email, password);
+        if (response.requires2FA) {
+          setPendingEmail(email);
+          setShow2FA(true);
+        }
+      } catch (error) {
+        // Ігноруємо помилки, це просто перевірка
+      }
+    };
+    if (email && password && !show2FA) {
+      check2FA();
+    }
+  }, []);
 
   if (show2FA) {
     return (
