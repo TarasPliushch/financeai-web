@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { BiometricAuth } from './BiometricAuth';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
@@ -21,10 +20,11 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [isBlocked, setIsBlocked] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, checkPin } = useAuth();
 
-  // Визначаємо, чи це мобільний пристрій
   useEffect(() => {
     const checkMobile = () => {
       const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -32,22 +32,25 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     };
     checkMobile();
     inputRef.current?.focus();
+    
+    // Завантажуємо кількість спроб з localStorage
+    const savedAttempts = localStorage.getItem('pinAttempts');
+    if (savedAttempts) {
+      setAttempts(parseInt(savedAttempts));
+    }
+    
+    console.log('🔐 PinUnlockView mounted');
   }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && pin.length === 6) {
-      verifyPin();
-    }
-  };
-
   const verifyPin = async () => {
+    setError('');
+    
     if (pin.length !== 6) {
       setError('Введіть 6-значний PIN-код');
       return;
     }
 
     setIsLoading(true);
-    setError('');
     
     try {
       await refreshUser();
@@ -63,13 +66,40 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       const userId = user?.id || '';
       const calculatedHash = await hashPin(pin, userId);
       
+      console.log('🔐 ========== PIN VERIFICATION ==========');
+      console.log('🔐 Entered PIN:', pin);
+      console.log('🔐 Calculated hash:', calculatedHash);
+      console.log('🔐 Stored hash:', storedHash);
+      console.log('🔐 Match:', calculatedHash === storedHash);
+      console.log('🔐 ======================================');
+      
       if (calculatedHash === storedHash) {
+        // Успішний вхід - скидаємо лічильник
+        localStorage.removeItem('pinAttempts');
+        setAttempts(0);
         toast.success('PIN-код правильний');
         onSuccess();
       } else {
-        setError('Невірний PIN-код');
-        setPin('');
-        inputRef.current?.focus();
+        // Невдала спроба
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+        localStorage.setItem('pinAttempts', newAttempts.toString());
+        
+        const remaining = 3 - newAttempts;
+        
+        if (newAttempts >= 3) {
+          // Блокуємо акаунт
+          setIsBlocked(true);
+          setError('Акаунт заблоковано! Перевірте email для розблокування.');
+          toast.error('Акаунт заблоковано! Перевірте email.');
+          
+          // Відправляємо запит на блокування
+          await blockAccount();
+        } else {
+          setError(`Невірний PIN-код. Залишилось спроб: ${remaining}`);
+          setPin('');
+          inputRef.current?.focus();
+        }
       }
     } catch (error) {
       console.error('PIN verification error:', error);
@@ -78,33 +108,93 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       setIsLoading(false);
     }
   };
-
-  const handleNumberClick = (num: number) => {
-    if (pin.length < 6) {
-      const newPin = pin + num.toString();
-      setPin(newPin);
-      setError('');
-      if (newPin.length === 6) {
-        setTimeout(() => verifyPin(), 100);
-      }
+  
+  const blockAccount = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const userId = localStorage.getItem('userId');
+      
+      const response = await fetch('https://my-finance-app-2026-production.up.railway.app/api/auth/block-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'user-id': userId || ''
+        },
+        body: JSON.stringify({})
+      });
+      
+      const data = await response.json();
+      console.log('🔐 Block account response:', data);
+    } catch (error) {
+      console.error('Error blocking account:', error);
     }
   };
 
+  const handleNumberClick = (num: number) => {
+    if (pin.length < 6 && !isBlocked) {
+      setPin(pin + num.toString());
+      setError('');
+    }
+  };
+
+  const handleClear = () => {
+    setPin('');
+    setError('');
+    inputRef.current?.focus();
+  };
+
+  const handleDelete = () => {
+    setPin(pin.slice(0, -1));
+    setError('');
+    inputRef.current?.focus();
+  };
+
+  const buttonSize = isMobile ? 'w-14 h-14 text-xl' : 'w-16 h-16 text-2xl';
+
+  if (isBlocked) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold mb-2">Акаунт заблоковано</h2>
+          <p className="text-muted-foreground mb-4">
+            Ваш акаунт тимчасово заблоковано через 3 невдалі спроби введення PIN-коду.
+            <br />Перевірте електронну пошту для розблокування.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('userId');
+              localStorage.removeItem('pinAttempts');
+              window.location.href = '/login';
+            }}
+            className="w-full py-3 rounded-xl bg-primary text-white font-medium"
+          >
+            Повернутися до входу
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
-      <div className="w-full max-w-md p-6">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
+      <div className="w-full max-w-md p-4">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center mx-auto mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
           </div>
-          <h2 className="text-2xl font-bold">Введіть PIN-код</h2>
-          <p className="text-muted-foreground mt-2">Для доступу до застосунку</p>
+          <h2 className="text-xl font-bold">Введіть PIN-код</h2>
+          <p className="text-xs text-muted-foreground mt-1">Для доступу до застосунку</p>
+          {attempts > 0 && attempts < 3 && (
+            <p className="text-xs text-red-500 mt-1">Залишилось спроб: {3 - attempts}</p>
+          )}
         </div>
 
-        {/* Поле для вводу PIN */}
         <input
           ref={inputRef}
           type="password"
@@ -116,13 +206,14 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
             const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
             setPin(val);
             setError('');
-            if (val.length === 6) {
-              setTimeout(() => verifyPin(), 100);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && pin.length === 6) {
+              verifyPin();
             }
           }}
-          onKeyDown={handleKeyDown}
           placeholder="••••••"
-          className="w-full text-center text-2xl tracking-widest py-4 rounded-xl border border-border bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 mb-4"
+          className="w-full text-center text-2xl tracking-widest py-3 rounded-xl border border-border bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 mb-3"
           autoFocus
         />
 
@@ -130,43 +221,39 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           <p className="text-red-500 text-sm text-center mb-4">{error}</p>
         )}
 
-        {/* Цифрова клавіатура - ТІЛЬКИ ДЛЯ МОБІЛЬНИХ ПРИСТРОЇВ */}
         {isMobile && (
-          <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
+          <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
               <button
                 key={num}
                 onClick={() => handleNumberClick(num)}
-                className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
+                className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 font-medium transition-colors flex items-center justify-center`}
               >
                 {num}
               </button>
             ))}
             <button
-              onClick={() => {
-                setPin('');
-                setError('');
-                inputRef.current?.focus();
-              }}
-              className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-sm transition-colors"
+              onClick={handleClear}
+              className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 transition-colors flex items-center justify-center`}
+              title="Очистити все"
             >
-              Очистити
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 6h18M8 6V4h8v2M10 11v6M14 11v6M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14"/>
+                <path d="M9 3h6"/>
+              </svg>
             </button>
             <button
               onClick={() => handleNumberClick(0)}
-              className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 text-2xl font-medium transition-colors"
+              className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 font-medium transition-colors flex items-center justify-center`}
             >
               0
             </button>
             <button
-              onClick={() => {
-                setPin(pin.slice(0, -1));
-                setError('');
-                inputRef.current?.focus();
-              }}
-              className="w-16 h-16 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
+              onClick={handleDelete}
+              className={`${buttonSize} rounded-full bg-secondary hover:bg-secondary/80 transition-colors flex items-center justify-center`}
+              title="Видалити останню цифру"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
                 <line x1="18" y1="9" x2="12" y2="15"/>
                 <line x1="12" y1="9" x2="18" y2="15"/>
@@ -178,23 +265,9 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         <button
           onClick={verifyPin}
           disabled={pin.length !== 6 || isLoading}
-          className="mt-8 w-full py-3 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all"
+          className="mt-6 w-full py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all"
         >
           {isLoading ? 'Перевірка...' : 'Увійти'}
-        </button>
-
-        {/* Біометрична автентифікація - тільки на екрані PIN */}
-        <BiometricAuth onSuccess={onSuccess} />
-
-        <button
-          onClick={() => {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userId');
-            window.location.href = '/login';
-          }}
-          className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Вийти з акаунту
         </button>
       </div>
     </div>

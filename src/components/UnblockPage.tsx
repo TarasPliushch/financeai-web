@@ -9,7 +9,7 @@ export const UnblockPage: React.FC = () => {
   const token = searchParams.get('token');
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'expired'>('loading');
   const [email, setEmail] = useState('');
 
   useEffect(() => {
@@ -49,8 +49,12 @@ export const UnblockPage: React.FC = () => {
         setStatus('success');
         setTimeout(() => navigate('/login'), 2000);
       } else {
-        toast.error(data.error || 'Помилка розблокування');
-        setStatus('error');
+        if (data.error === 'Термін дії посилання вийшов') {
+          setStatus('expired');
+        } else {
+          toast.error(data.error || 'Помилка розблокування');
+          setStatus('error');
+        }
       }
     } catch (error) {
       toast.error('Помилка розблокування');
@@ -67,6 +71,19 @@ export const UnblockPage: React.FC = () => {
           <div className="text-6xl mb-4">❌</div>
           <h1 className="text-2xl font-bold mb-2">Недійсне посилання</h1>
           <p className="text-muted-foreground mb-6">Посилання для розблокування недійсне або вже використане.</p>
+          <button onClick={() => navigate('/login')} className="px-6 py-2 rounded-xl bg-primary text-white">Перейти до входу</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'expired') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="w-full max-w-md text-center">
+          <div className="text-6xl mb-4">⏰</div>
+          <h1 className="text-2xl font-bold mb-2">Термін дії вийшов</h1>
+          <p className="text-muted-foreground mb-6">Посилання для розблокування втратило чинність. Спробуйте увійти знову.</p>
           <button onClick={() => navigate('/login')} className="px-6 py-2 rounded-xl bg-primary text-white">Перейти до входу</button>
         </div>
       </div>
