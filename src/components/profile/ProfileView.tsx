@@ -99,13 +99,13 @@ export const ProfileView: React.FC = () => {
 
   const handle2FAToggle = async () => {
     if (!twoFactorEnabled) {
-      // Увімкнення 2FA - запитуємо код
       setIsEnabling2FA(true);
       try {
         const response = await api.enable2FA();
         if (response.success) {
           setShow2FACode(true);
           toast.success('Код надіслано на ваш email');
+          setIsEnabling2FA(false); // Важливо: скидаємо після отримання коду
         } else {
           toast.error(response.error || 'Помилка');
           setIsEnabling2FA(false);
@@ -115,7 +115,6 @@ export const ProfileView: React.FC = () => {
         setIsEnabling2FA(false);
       }
     } else {
-      // Вимкнення 2FA
       try {
         const response = await api.disable2FA();
         if (response.success) {
@@ -388,7 +387,7 @@ export const ProfileView: React.FC = () => {
         </div>
       </div>
 
-      {/* 2FA Code Modal */}
+      {/* 2FA Code Modal - ВИПРАВЛЕНО */}
       {show2FACode && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl bg-background border border-border shadow-2xl p-6">
@@ -406,7 +405,10 @@ export const ProfileView: React.FC = () => {
               inputMode="numeric"
               maxLength={6}
               value={twoFactorCode}
-              onChange={(e) => setTwoFactorCode(e.target.value.replace(/[^0-9]/g, ''))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                setTwoFactorCode(val);
+              }}
               placeholder="000000"
               className="w-full text-center text-2xl tracking-widest py-3 rounded-xl border border-border bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 mb-4"
               autoFocus
@@ -416,7 +418,6 @@ export const ProfileView: React.FC = () => {
                 onClick={() => {
                   setShow2FACode(false);
                   setTwoFactorCode('');
-                  setIsEnabling2FA(false);
                 }}
                 className="flex-1 py-2.5 rounded-xl border border-border hover:bg-secondary"
               >
@@ -424,7 +425,7 @@ export const ProfileView: React.FC = () => {
               </button>
               <button
                 onClick={handleVerify2FACode}
-                disabled={twoFactorCode.length !== 6 || isEnabling2FA}
+                disabled={twoFactorCode.length !== 6}
                 className="flex-1 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50"
               >
                 Підтвердити
