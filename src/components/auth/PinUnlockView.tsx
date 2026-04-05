@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { BiometricAuth } from './BiometricAuth';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
@@ -158,6 +159,12 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     inputRef.current?.focus();
   };
 
+  const handleBiometricSuccess = () => {
+    console.log('🔐 Biometric auth success');
+    toast.success('Біометрична автентифікація успішна');
+    onSuccess();
+  };
+
   const buttonSize = isMobile ? 'w-14 h-14 text-xl' : 'w-16 h-16 text-2xl';
 
   if (isBlocked) {
@@ -276,6 +283,21 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
           className="mt-6 w-full py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50 transition-all"
         >
           {isLoading ? 'Перевірка...' : 'Увійти'}
+        </button>
+
+        {/* Біометрична автентифікація */}
+        <BiometricAuth onSuccess={handleBiometricSuccess} />
+
+        <button
+          onClick={() => {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('pinAttempts');
+            window.location.href = '/login';
+          }}
+          className="mt-3 w-full py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Вийти з акаунту
         </button>
       </div>
     </div>
