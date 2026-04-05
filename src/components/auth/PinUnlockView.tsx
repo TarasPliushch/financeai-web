@@ -7,7 +7,6 @@ interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
-// Функція хешування PIN (той самий метод, що в iOS)
 const hashPin = async (pin: string, userId: string): Promise<string> => {
   const input = userId + pin;
   const encoder = new TextEncoder();
@@ -56,7 +55,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       const storedHash = user?.pinHash;
       
       if (!storedHash) {
-        setError('PIN-код не встановлено. Перейдіть в Профіль → Безпека');
+        setError('PIN-код не встановлено');
         setIsLoading(false);
         return;
       }
@@ -193,8 +192,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         >
           {isLoading ? 'Перевірка...' : 'Увійти'}
         </button>
-
-        <BiometricAuth onSuccess={onSuccess} />
 
         <button
           onClick={() => {
