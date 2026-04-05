@@ -19,6 +19,10 @@ export const ProfileView: React.FC = () => {
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [show2FACode, setShow2FACode] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [isEnabling2FA, setIsEnabling2FA] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -32,6 +36,9 @@ export const ProfileView: React.FC = () => {
       }
     }
     checkBiometricAvailability();
+    const savedBiometric = localStorage.getItem('biometricEnabled');
+    setBiometricEnabled(savedBiometric === 'true');
+    setTwoFactorEnabled(user?.twoFactorEnabled || false);
   }, [user]);
 
   const checkBiometricAvailability = async () => {
@@ -40,19 +47,14 @@ export const ProfileView: React.FC = () => {
           typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
         const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
         setBiometricAvailable(available);
-        // Перевіряємо налаштування в localStorage
-        const saved = localStorage.getItem('biometricEnabled');
-        setBiometricEnabled(saved === 'true');
       }
     } catch (error) {
-      console.log('Biometric not supported');
       setBiometricAvailable(false);
     }
   };
 
   const handleBiometricToggle = async () => {
     if (!biometricEnabled) {
-      // Спроба налаштувати біометрію
       try {
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
@@ -78,8 +80,9 @@ export const ProfileView: React.FC = () => {
         });
         
         if (credential) {
-          setBiometricEnabled(true);
+          localStorage.setItem('biometricCredentialId', (credential as any).id);
           localStorage.setItem('biometricEnabled', 'true');
+          setBiometricEnabled(true);
           toast.success('Біометричну автентифікацію налаштовано!');
         }
       } catch (error) {
@@ -87,9 +90,107 @@ export const ProfileView: React.FC = () => {
         toast.error('Не вдалося налаштувати біометричну автентифікацію');
       }
     } else {
-      setBiometricEnabled(false);
+      localStorage.removeItem('biometricCredentialId');
       localStorage.setItem('biometricEnabled', 'false');
+      setBiometricEnabled(false);
       toast.success('Біометричну автентифікацію вимкнено');
+    }
+  };
+
+  const handle2FAToggle = async () => {
+    if (!twoFactorEnabled) {
+      // Увімкнення 2FA - запитуємо код
+      setIsEnabling2FA(true);
+      try {
+        const response = await api.enable2FA();
+        if (response.success) {
+          setShow2FACode(true);
+          toast.success('Код надіслано на ваш email');
+        } else {
+          toast.error(response.error || 'Помилка');
+          setIsEnabling2FA(false);
+        }
+      } catch (error) {
+        toast.error('Помилка надсилання коду');
+        setIsEnabling2FA(false);
+      }
+    } else {
+      // Вимкнення 2FA
+      try {
+        const response = await api.disable2FA();
+        if (response.success) {
+          setTwoFactorEnabled(false);
+          toast.success('2FA вимкнено');
+        } else {
+          toast.error(response.error || 'Помилка');
+        }
+      } catch (error) {
+        toast.error('Помилка вимкнення 2FA');
+      }
+    }
+  };
+
+  const handleVerify2FACode = async () => {
+    if (!twoFactorCode || twoFactorCode.length !== 6) {
+      toast.error('Введіть 6-значний код');
+      return;
+    }
+    setIsEnabling2FA(true);
+    try {
+      const response = await api.verify2FACode(twoFactorCode);
+      if (response.success) {
+        setTwoFactorEnabled(true);
+        setShow2FACode(false);
+        setTwoFactorCode('');
+        toast.success('2FA увімкнено!');
+      } else {
+        toast.error(response.error || 'Невірний код');
+      }
+    } catch (error) {
+      toast.error('Помилка верифікації');
+    } finally {
+      setIsEnabling2FA(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Будь ласка, оберіть зображення');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Файл не більше 5MB');
+      return;
+    }
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result as string;
+      setAvatarImageUrl(base64String);
+      setEditAvatarEmoji('📷');
+      const success = await updateProfile({ avatarEmoji: base64String });
+      if (success) toast.success('Аватар оновлено');
+      else toast.error('Помилка збереження аватара');
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    let avatarData = editAvatarEmoji;
+    if (avatarImageUrl) avatarData = avatarImageUrl;
+    const success = await updateProfile({
+      name: editName,
+      description: editDescription,
+      avatarEmoji: avatarData,
+    });
+    setIsSaving(false);
+    if (success) {
+      setIsEditing(false);
+      toast.success('Профіль оновлено');
     }
   };
 
@@ -97,6 +198,7 @@ export const ProfileView: React.FC = () => {
     { q: "Як синхронізуються мої дані між пристроями?", a: "Ваші дані автоматично синхронізуються з сервером при кожному вході. Достатньо увійти під своїм email на будь-якому пристрої." },
     { q: "Як встановити або змінити код безпеки?", a: "Перейдіть до розділу «Безпека» в налаштуваннях профілю. Вводите 6-значний PIN." },
     { q: "Чи можна використовувати Face ID замість коду?", a: "Так! Якщо ваш пристрій підтримує Face ID або Touch ID, увімкніть цю опцію в налаштуваннях безпеки." },
+    { q: "Що таке двофакторна автентифікація?", a: "2FA додає додатковий рівень захисту. При вході вам буде надіслано код на email, який потрібно ввести для доступу." },
     { q: "Де зберігаються мої фінансові дані?", a: "Дані шифруються та зберігаються на захищеному сервері, прив'язаному до вашого акаунту." },
     { q: "Як AI Lis аналізує мої витрати?", a: "Lis аналізує всі витрати, доходи та цілі з вашого акаунту. Просто запитайте у чаті!" },
     { q: "Як встановити нагадування для списку покупок?", a: "При створенні або редагуванні списку увімкніть «Встановити нагадування», вкажіть дату й час." },
@@ -243,11 +345,34 @@ export const ProfileView: React.FC = () => {
             </button>
           </div>
           
-          {/* Biometric toggle - тільки якщо підтримується */}
+          {/* 2FA Toggle */}
+          <div className="flex justify-between items-center p-3 rounded-xl bg-white/5">
+            <span className="flex items-center gap-2">
+              <span className="text-lg">🔑</span> Двофакторна автентифікація (2FA)
+            </span>
+            <div className="relative">
+              {isEnabling2FA && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/5 rounded-full">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={twoFactorEnabled}
+                  onChange={handle2FAToggle}
+                  disabled={isEnabling2FA}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-secondary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+          </div>
+          
           {biometricAvailable && (
             <div className="flex justify-between items-center p-3 rounded-xl bg-white/5">
               <span className="flex items-center gap-2">
-                <span className="text-lg">🔑</span> Вхід за відбитком
+                <span className="text-lg">🖐️</span> Вхід за відбитком
               </span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -262,6 +387,52 @@ export const ProfileView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* 2FA Code Modal */}
+      {show2FACode && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-background border border-border shadow-2xl p-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">🔐</span>
+              </div>
+              <h2 className="text-xl font-bold">Увімкнення 2FA</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Код підтвердження надіслано на ваш email
+              </p>
+            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={twoFactorCode}
+              onChange={(e) => setTwoFactorCode(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="000000"
+              className="w-full text-center text-2xl tracking-widest py-3 rounded-xl border border-border bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 mb-4"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShow2FACode(false);
+                  setTwoFactorCode('');
+                  setIsEnabling2FA(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-border hover:bg-secondary"
+              >
+                Скасувати
+              </button>
+              <button
+                onClick={handleVerify2FACode}
+                disabled={twoFactorCode.length !== 6 || isEnabling2FA}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                Підтвердити
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FAQ Section */}
       <div className="rounded-2xl bg-gradient-to-br from-secondary/30 to-secondary/10 backdrop-blur-sm border border-border overflow-hidden">
@@ -338,7 +509,3 @@ export const ProfileView: React.FC = () => {
     </div>
   );
 };
-
-// Функції для роботи з аватаром
-function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) { /* реалізація */ }
-function handleSave() { /* реалізація */ }

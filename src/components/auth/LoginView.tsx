@@ -11,6 +11,7 @@ export const LoginView: React.FC = () => {
   const [show2FA, setShow2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(0);
   const { login, verifyTwoFactor, pendingTwoFactorEmail } = useAuth();
   const navigate = useNavigate();
 
@@ -28,6 +29,14 @@ export const LoginView: React.FC = () => {
     }
   }, [pendingTwoFactorEmail]);
 
+  // Таймер для повторного надсилання коду
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -35,8 +44,6 @@ export const LoginView: React.FC = () => {
     setIsLoading(false);
     
     if (success) {
-      // Зберігаємо час успішного логіну
-      localStorage.setItem('lastLoginTime', Date.now().toString());
       navigate('/');
     }
   };
@@ -50,8 +57,23 @@ export const LoginView: React.FC = () => {
     const success = await verifyTwoFactor(pendingEmail, twoFactorCode);
     setIsLoading(false);
     if (success) {
-      localStorage.setItem('lastLoginTime', Date.now().toString());
       navigate('/');
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCountdown > 0) return;
+    setIsLoading(true);
+    try {
+      const response = await api.login(pendingEmail, '');
+      if (response.requires2FA) {
+        toast.success('Код надіслано повторно');
+        setResendCountdown(60);
+      }
+    } catch (error) {
+      toast.error('Помилка надсилання коду');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -65,7 +87,7 @@ export const LoginView: React.FC = () => {
             </div>
             <h1 className="mt-4 text-2xl font-bold">Двофакторна автентифікація</h1>
             <p className="mt-2 text-muted-foreground">
-              Код надіслано на {pendingEmail}
+              Код надіслано на <strong>{pendingEmail}</strong>
             </p>
           </div>
           <input
@@ -85,8 +107,28 @@ export const LoginView: React.FC = () => {
           >
             {isLoading ? 'Перевірка...' : 'Підтвердити'}
           </button>
+          
+          <div className="mt-4 text-center">
+            {resendCountdown > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Повторно надіслати через {resendCountdown} с
+              </p>
+            ) : (
+              <button
+                onClick={handleResendCode}
+                disabled={isLoading}
+                className="text-sm text-primary hover:underline"
+              >
+                Надіслати код повторно
+              </button>
+            )}
+          </div>
+          
           <button
-            onClick={() => setShow2FA(false)}
+            onClick={() => {
+              setShow2FA(false);
+              setPendingEmail('');
+            }}
             className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground"
           >
             ← Повернутися до входу
