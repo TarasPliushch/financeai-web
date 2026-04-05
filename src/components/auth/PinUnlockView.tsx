@@ -23,7 +23,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
   const [attempts, setAttempts] = useState(0);
   const [isBlocked, setIsBlocked] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { user, refreshUser, checkPin } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -41,6 +41,34 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     
     console.log('🔐 PinUnlockView mounted');
   }, []);
+
+  const callBlockAccount = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const userId = localStorage.getItem('userId');
+      
+      console.log('🔐 Calling block-account API...');
+      const response = await fetch('https://my-finance-app-2026-production.up.railway.app/api/auth/block-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'user-id': userId || ''
+        }
+      });
+      
+      const data = await response.json();
+      console.log('🔐 Block account response:', data);
+      
+      if (data.success) {
+        console.log('🔐 Account blocked successfully, email sent');
+      } else {
+        console.log('🔐 Failed to block account:', data.error);
+      }
+    } catch (error) {
+      console.error('Error calling block-account:', error);
+    }
+  };
 
   const verifyPin = async () => {
     setError('');
@@ -71,6 +99,7 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       console.log('🔐 Calculated hash:', calculatedHash);
       console.log('🔐 Stored hash:', storedHash);
       console.log('🔐 Match:', calculatedHash === storedHash);
+      console.log('🔐 Current attempts:', attempts);
       console.log('🔐 ======================================');
       
       if (calculatedHash === storedHash) {
@@ -89,12 +118,13 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
         
         if (newAttempts >= 3) {
           // Блокуємо акаунт
+          console.log('🔐 Three failed attempts! Blocking account...');
           setIsBlocked(true);
           setError('Акаунт заблоковано! Перевірте email для розблокування.');
           toast.error('Акаунт заблоковано! Перевірте email.');
           
           // Відправляємо запит на блокування
-          await blockAccount();
+          await callBlockAccount();
         } else {
           setError(`Невірний PIN-код. Залишилось спроб: ${remaining}`);
           setPin('');
@@ -109,28 +139,6 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     }
   };
   
-  const blockAccount = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const userId = localStorage.getItem('userId');
-      
-      const response = await fetch('https://my-finance-app-2026-production.up.railway.app/api/auth/block-account', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'user-id': userId || ''
-        },
-        body: JSON.stringify({})
-      });
-      
-      const data = await response.json();
-      console.log('🔐 Block account response:', data);
-    } catch (error) {
-      console.error('Error blocking account:', error);
-    }
-  };
-
   const handleNumberClick = (num: number) => {
     if (pin.length < 6 && !isBlocked) {
       setPin(pin + num.toString());
