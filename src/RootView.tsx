@@ -24,7 +24,7 @@ export const RootView: React.FC = () => {
         
         const hasPin = !!user?.pinHash;
         
-        if (hasPin && !isUnlocked) {
+        if (hasPin && !isUnlocked && !showPinUnlock) {
           setShowPinUnlock(true);
         } else if (!hasPin) {
           setIsUnlocked(true);
@@ -42,7 +42,7 @@ export const RootView: React.FC = () => {
     if (!isLoading && isAuthenticated && user) {
       checkPin();
     }
-  }, [isAuthenticated, user, isLoading, isUnlocked]);
+  }, [isAuthenticated, user, isLoading, isUnlocked, showPinUnlock]);
 
   const handlePinSuccess = () => {
     setShowPinUnlock(false);

@@ -19,6 +19,7 @@ interface AuthContextType {
   resetPassword: (email: string, code: string, newPassword: string) => Promise<boolean>;
   verifyTwoFactor: (email: string, code: string) => Promise<boolean>;
   pendingTwoFactorEmail: string;
+  checkPin: (pin: string) => Promise<{ success: boolean; error?: string; blocked?: boolean; attemptsLeft?: number }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,9 +30,8 @@ export const useAuth = () => {
   return context;
 };
 
-const LOGIN_TIME_KEY = 'loginTimestamp';
+const SESSION_KEY = 'authSession';
 const SESSION_DURATION_DAYS = 30;
-const SESSION_DURATION_MS = SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -50,16 +50,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
     
+    // Перевіряємо сесію
+    const sessionData = localStorage.getItem(SESSION_KEY);
+    if (sessionData) {
+      try {
+        const { expiresAt } = JSON.parse(sessionData);
+        if (new Date(expiresAt) < new Date()) {
+          // Сесія закінчилась
+          logout();
+          setIsLoading(false);
+          return;
+        }
+      } catch (e) {}
+    }
+    
     try {
       const response = await api.getCurrentUser();
       if (response.user) {
         setUser(response.user);
         api.setUserId(response.user.id);
+        console.log('✅ Session restored for:', response.user.email);
       } else {
         logout();
       }
     } catch (error) {
       console.error('Error loading user:', error);
+      // При помилці мережі не виходимо
+      if (error.response?.status === 401) {
+        logout();
+      }
     }
     finally { 
       setIsLoading(false); 
@@ -80,6 +99,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const checkPin = async (pin: string): Promise<{ success: boolean; error?: string; blocked?: boolean; attemptsLeft?: number }> => {
+    try {
+      const token = api.getToken();
+      const userId = api.getUserId();
+      
+      if (!token || !userId) {
+        return { success: false, error: 'Не авторизовано' };
+      }
+      
+      const response = await fetch('https://my-finance-app-2026-production.up.railway.app/api/auth/verify-pin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'user-id': userId
+        },
+        body: JSON.stringify({ pin })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: data.error || 'Невірний PIN', 
+          blocked: data.blocked,
+          attemptsLeft: data.attemptsLeft 
+        };
+      }
+    } catch (error) {
+      return { success: false, error: 'Помилка перевірки PIN' };
+    }
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const response: AuthResponse = await api.login(email, password);
@@ -94,7 +149,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         api.setUserId(response.user.id);
         if (response.user.isEmailVerified === false) setRequiresEmailVerification(true);
         
-        localStorage.setItem(LOGIN_TIME_KEY, Date.now().toString());
+        // Зберігаємо сесію на 30 днів
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ expiresAt: expiresAt.toISOString() }));
         localStorage.setItem('lastEmail', email);
         
         toast.success('Вхід виконано!');
@@ -117,7 +175,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         api.setUserId(response.user.id);
         if (response.requiresVerification) setRequiresEmailVerification(true);
         
-        localStorage.setItem(LOGIN_TIME_KEY, Date.now().toString());
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ expiresAt: expiresAt.toISOString() }));
         localStorage.setItem('lastEmail', email);
         
         toast.success('Реєстрація успішна!');
@@ -140,7 +200,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         api.setUserId(response.user.id);
         setPendingTwoFactorEmail('');
         
-        localStorage.setItem(LOGIN_TIME_KEY, Date.now().toString());
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ expiresAt: expiresAt.toISOString() }));
         localStorage.setItem('lastEmail', email);
         
         toast.success('2FA підтверджено!');
@@ -161,6 +223,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setRequiresEmailVerification(false);
     sessionStorage.removeItem('pinVerified');
     localStorage.removeItem('pinUnlocked');
+    localStorage.removeItem(SESSION_KEY);
     toast.success('Ви вийшли');
   };
 
@@ -236,7 +299,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <AuthContext.Provider value={{
       user, isLoading, isAuthenticated: !!user, requiresEmailVerification,
       login, register, logout, updateProfile, refreshUser, verifyEmail, resendVerification,
-      requestPasswordReset, resetPassword, verifyTwoFactor, pendingTwoFactorEmail
+      requestPasswordReset, resetPassword, verifyTwoFactor, pendingTwoFactorEmail,
+      checkPin
     }}>
       {children}
     </AuthContext.Provider>

@@ -11,7 +11,7 @@ export const LoginView: React.FC = () => {
   const [show2FA, setShow2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
-  const { login, verifyTwoFactor } = useAuth();
+  const { login, verifyTwoFactor, pendingTwoFactorEmail } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,6 +20,14 @@ export const LoginView: React.FC = () => {
       setEmail(savedEmail);
     }
   }, []);
+
+  // Слухаємо зміну pendingTwoFactorEmail з AuthContext
+  useEffect(() => {
+    if (pendingTwoFactorEmail) {
+      setPendingEmail(pendingTwoFactorEmail);
+      setShow2FA(true);
+    }
+  }, [pendingTwoFactorEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,37 +46,12 @@ export const LoginView: React.FC = () => {
       return;
     }
     setIsLoading(true);
-    try {
-      const success = await verifyTwoFactor(pendingEmail, twoFactorCode);
-      if (success) {
-        navigate('/');
-      } else {
-        setTwoFactorCode('');
-      }
-    } catch (error) {
-      toast.error('Помилка верифікації');
-    } finally {
-      setIsLoading(false);
+    const success = await verifyTwoFactor(pendingEmail, twoFactorCode);
+    setIsLoading(false);
+    if (success) {
+      navigate('/');
     }
   };
-
-  // Перевіряємо, чи потрібна 2FA
-  useEffect(() => {
-    const check2FA = async () => {
-      try {
-        const response = await api.login(email, password);
-        if (response.requires2FA) {
-          setPendingEmail(email);
-          setShow2FA(true);
-        }
-      } catch (error) {
-        // Ігноруємо помилки, це просто перевірка
-      }
-    };
-    if (email && password && !show2FA) {
-      check2FA();
-    }
-  }, []);
 
   if (show2FA) {
     return (
@@ -101,7 +84,10 @@ export const LoginView: React.FC = () => {
             {isLoading ? 'Перевірка...' : 'Підтвердити'}
           </button>
           <button
-            onClick={() => setShow2FA(false)}
+            onClick={() => {
+              setShow2FA(false);
+              setPendingEmail('');
+            }}
             className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground"
           >
             ← Повернутися до входу

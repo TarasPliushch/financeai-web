@@ -20,19 +20,6 @@ class ApiService {
       if (userId) config.headers['user-id'] = userId;
       return config;
     });
-
-    this.api.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          console.log('🔐 401 Unauthorized - logging out');
-          this.setToken(null);
-          this.setUserId(null);
-          window.dispatchEvent(new Event('authError'));
-        }
-        return Promise.reject(error);
-      }
-    );
   }
 
   setToken(token: string | null) {
@@ -259,8 +246,3 @@ class ApiService {
 }
 
 export const api = new ApiService();
-
-window.addEventListener('authError', () => {
-  console.log('🔐 Auth error event received');
-  window.location.href = '/login';
-});
