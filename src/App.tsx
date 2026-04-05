@@ -17,6 +17,7 @@ import { NotificationsView } from './components/notifications/NotificationsView'
 import { ProfileView } from './components/profile/ProfileView';
 import { DebugView } from './components/DebugView';
 import { UnblockPage } from './components/UnblockPage';
+import { RootView } from './RootView';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, requiresEmailVerification } = useAuth();
@@ -62,7 +63,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <RootView />
       </AuthProvider>
     </ThemeProvider>
   );

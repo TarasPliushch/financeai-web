@@ -5,53 +5,27 @@ import SplashView from './components/SplashView';
 import ContentView from './ContentView';
 
 export const RootView: React.FC = () => {
-  const { isAuthenticated, user, isLoading, refreshUser } = useAuth();
+  const { isAuthenticated, user, refreshUser } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [showPinUnlock, setShowPinUnlock] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [loginTime, setLoginTime] = useState<number | null>(null);
+  const [checked, setChecked] = useState(false);
 
-  // Відстежуємо час останнього логіну через localStorage
-  useEffect(() => {
-    const checkLoginTime = () => {
-      const lastLogin = localStorage.getItem('lastLoginTime');
-      if (lastLogin) {
-        setLoginTime(parseInt(lastLogin));
-      }
-    };
-    checkLoginTime();
-    
-    // Слухаємо зміни в localStorage (для випадку, якщо логін в іншій вкладці)
-    const handleStorageChange = () => {
-      const lastLogin = localStorage.getItem('lastLoginTime');
-      if (lastLogin) {
-        setLoginTime(parseInt(lastLogin));
-        // Скидаємо стан при новому логіні
-        setIsUnlocked(false);
-        setShowPinUnlock(false);
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  // Перевірка PIN при зміні часу логіну або автентифікації
+  // Перевіряємо PIN при кожній зміні isAuthenticated або user
   useEffect(() => {
     const checkPin = async () => {
-      console.log('🔐 ========== PIN CHECK ==========');
+      console.log('🔐 ========== CHECKING PIN ==========');
       console.log('🔐 isAuthenticated:', isAuthenticated);
-      console.log('🔐 isLoading:', isLoading);
-      console.log('🔐 loginTime:', loginTime);
+      console.log('🔐 user:', user?.email);
+      console.log('🔐 user?.pinHash:', user?.pinHash);
       console.log('🔐 isUnlocked:', isUnlocked);
       console.log('🔐 showPinUnlock:', showPinUnlock);
       
       if (!isAuthenticated) {
-        console.log('🔐 Not authenticated');
-        return;
-      }
-      
-      if (isLoading) {
-        console.log('🔐 Still loading');
+        console.log('🔐 Not authenticated, resetting');
+        setIsUnlocked(false);
+        setShowPinUnlock(false);
+        setChecked(false);
         return;
       }
       
@@ -65,46 +39,46 @@ export const RootView: React.FC = () => {
         return;
       }
       
-      console.log('🔐 Checking PIN...');
+      if (checked) {
+        console.log('🔐 Already checked');
+        return;
+      }
+      
+      setChecked(true);
       
       try {
-        // Оновлюємо дані користувача
+        // Оновлюємо дані
         await refreshUser();
         
-        // Перевіряємо наявність PIN
         const hasPin = !!user?.pinHash;
         console.log('🔐 Has PIN:', hasPin);
-        console.log('🔐 PIN hash:', user?.pinHash);
         
         if (hasPin) {
-          console.log('🔐 ✅ SHOWING PIN UNLOCK SCREEN');
+          console.log('🔐 ✅✅✅ SHOWING PIN SCREEN ✅✅✅');
           setShowPinUnlock(true);
         } else {
-          console.log('🔐 No PIN set, auto-unlock');
+          console.log('🔐 No PIN, unlocking');
           setIsUnlocked(true);
         }
       } catch (error) {
-        console.error('Error checking PIN:', error);
+        console.error('Error:', error);
         setIsUnlocked(true);
       }
     };
     
-    if (isAuthenticated && !isLoading && !isUnlocked && !showPinUnlock) {
-      checkPin();
-    }
-  }, [isAuthenticated, isLoading, isUnlocked, showPinUnlock, loginTime, refreshUser, user]);
+    checkPin();
+  }, [isAuthenticated, user, isUnlocked, showPinUnlock, checked, refreshUser]);
 
   const handlePinSuccess = () => {
-    console.log('🔐 PIN correct, unlocking app');
+    console.log('🔐 PIN success, unlocking');
     setShowPinUnlock(false);
     setIsUnlocked(true);
   };
 
-  if (isLoading || showSplash) {
+  if (showSplash) {
     return <SplashView onFinish={() => setShowSplash(false)} />;
   }
 
-  // Показуємо PIN екран
   if (showPinUnlock) {
     return <PinUnlockView onSuccess={handlePinSuccess} />;
   }
