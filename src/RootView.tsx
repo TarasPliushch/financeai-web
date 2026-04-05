@@ -13,68 +13,59 @@ export const RootView: React.FC = () => {
 
   useEffect(() => {
     const checkPin = async () => {
-      console.log('🔐 RootView: ========== PIN CHECK START ==========');
-      console.log('🔐 isAuthenticated:', isAuthenticated);
-      console.log('🔐 isLoading:', isLoading);
-      console.log('🔐 user exists:', !!user);
-      console.log('🔐 user?.email:', user?.email);
-      console.log('🔐 user?.pinHash:', user?.pinHash);
-      console.log('🔐 isUnlocked:', isUnlocked);
-      console.log('🔐 showPinUnlock:', showPinUnlock);
-      
+      // Якщо користувач не автентифікований - чекаємо завантаження
       if (!isAuthenticated || !user) {
-        console.log('🔐 Not authenticated or no user, skipping PIN check');
+        console.log('🔐 Користувач не автентифікований, чекаємо...');
         return;
       }
 
       setIsCheckingPin(true);
       
       try {
-        // Оновлюємо дані користувача з сервера
+        // Оновлюємо дані користувача для отримання актуального pinHash
         await refreshUser();
         
-        // Після refreshUser, user може оновитися, але в замиканні старий
-        // Тому отримуємо свіжі дані через setTimeout
-        setTimeout(async () => {
-          const hasPin = !!user?.pinHash;
-          console.log('🔐 After refresh - Has PIN:', hasPin);
-          console.log('🔐 After refresh - pinHash:', user?.pinHash);
-          
-          if (hasPin && !isUnlocked && !showPinUnlock) {
-            console.log('🔐 SHOWING PIN UNLOCK SCREEN');
-            setShowPinUnlock(true);
-          } else if (!hasPin) {
-            console.log('🔐 No PIN set, going to content');
-            setIsUnlocked(true);
-            setShowPinUnlock(false);
-          } else if (hasPin && isUnlocked) {
-            console.log('🔐 Already unlocked, going to content');
-            setShowPinUnlock(false);
-          }
-          setIsCheckingPin(false);
-        }, 100);
+        const hasPin = !!user?.pinHash;
+        
+        console.log('🔐 RootView: перевірка PIN');
+        console.log('  isAuthenticated:', isAuthenticated);
+        console.log('  hasPin:', hasPin);
+        console.log('  isUnlocked:', isUnlocked);
+        console.log('  showPinUnlock:', showPinUnlock);
+        
+        // Якщо PIN встановлений і ще не розблоковано - показуємо екран PIN
+        if (hasPin && !isUnlocked && !showPinUnlock) {
+          setShowPinUnlock(true);
+        } else if (!hasPin) {
+          // Якщо PIN не встановлений - одразу в контент
+          setIsUnlocked(true);
+          setShowPinUnlock(false);
+        }
       } catch (error) {
         console.error('Error checking PIN:', error);
+        // При помилці все одно пускаємо в контент
         setIsUnlocked(true);
         setShowPinUnlock(false);
+      } finally {
         setIsCheckingPin(false);
       }
     };
     
+    // Запускаємо перевірку тільки коли користувач завантажився
     if (!isLoading && isAuthenticated && user) {
       checkPin();
     }
-  }, [isAuthenticated, user, isLoading, isUnlocked, showPinUnlock, refreshUser]);
+  }, [isAuthenticated, user, isLoading, isUnlocked, showPinUnlock]);
 
   const handlePinSuccess = () => {
-    console.log('🔐 PIN successfully entered');
+    console.log('🔐 PIN успішно введено');
     setShowPinUnlock(false);
     setIsUnlocked(true);
   };
 
+  // Якщо користувач вийшов - скидаємо стан
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log('🔐 User logged out, resetting state');
       setIsUnlocked(false);
       setShowPinUnlock(false);
     }
