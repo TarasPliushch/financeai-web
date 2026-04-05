@@ -87,33 +87,6 @@ class ApiService {
     return res.data;
   }
 
-  // ==================== PIN RECOVERY ====================
-  async requestPinReset(email: string) {
-    const res = await this.api.post('/auth/reset-pin-request', { email });
-    return res.data;
-  }
-
-  async verifyPinResetCode(email: string, code: string, newPinHash: string) {
-    const res = await this.api.post('/auth/reset-pin-verify', { email, code, newPinHash });
-    return res.data;
-  }
-
-  // ==================== 2FA ====================
-  async enable2FA() {
-    const res = await this.api.post('/auth/2fa/enable');
-    return res.data;
-  }
-
-  async disable2FA() {
-    const res = await this.api.post('/auth/2fa/disable');
-    return res.data;
-  }
-
-  async verify2FACode(code: string) {
-    const res = await this.api.post('/auth/2fa/verify', { code });
-    return res.data;
-  }
-
   // ==================== EXPENSES ====================
   async getExpenses() {
     const res = await this.api.get('/expenses');

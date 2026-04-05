@@ -8,7 +8,6 @@ interface PinSetupViewProps {
   mode?: 'setup' | 'change';
 }
 
-// Той самий метод хешування, що в iOS
 const hashPin = async (pin: string, userId: string): Promise<string> => {
   const input = userId + pin;
   const encoder = new TextEncoder();
@@ -71,6 +70,7 @@ export const PinSetupView: React.FC<PinSetupViewProps> = ({ onSuccess, onCancel,
         console.log('========== PIN SETUP ==========');
         console.log('User ID:', userId);
         console.log('PIN:', pin);
+        console.log('Input string:', userId + pin);
         console.log('Hash to save:', hashedPin);
         console.log('===============================');
         

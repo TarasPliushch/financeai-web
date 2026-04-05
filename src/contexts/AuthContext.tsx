@@ -30,9 +30,6 @@ export const useAuth = () => {
   return context;
 };
 
-const SESSION_KEY = 'authSession';
-const SESSION_DURATION_DAYS = 30;
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,40 +42,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const loadUser = async () => {
     const token = api.getToken();
+    console.log('🔐 Auth: loadUser started, token exists:', !!token);
+    
     if (!token) {
       setIsLoading(false);
       return;
     }
     
-    // Перевіряємо сесію
-    const sessionData = localStorage.getItem(SESSION_KEY);
-    if (sessionData) {
-      try {
-        const { expiresAt } = JSON.parse(sessionData);
-        if (new Date(expiresAt) < new Date()) {
-          // Сесія закінчилась
-          logout();
-          setIsLoading(false);
-          return;
-        }
-      } catch (e) {}
-    }
-    
     try {
       const response = await api.getCurrentUser();
+      console.log('🔐 Auth: getCurrentUser response:', response);
+      
       if (response.user) {
         setUser(response.user);
         api.setUserId(response.user.id);
-        console.log('✅ Session restored for:', response.user.email);
+        console.log('✅ Auth: User loaded, email:', response.user.email);
+        console.log('✅ Auth: PIN hash:', response.user.pinHash);
       } else {
+        console.log('🔐 Auth: No user in response');
         logout();
       }
     } catch (error) {
       console.error('Error loading user:', error);
-      // При помилці мережі не виходимо
-      if (error.response?.status === 401) {
-        logout();
-      }
     }
     finally { 
       setIsLoading(false); 
@@ -86,12 +71,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const refreshUser = async () => {
+    console.log('🔄 Auth: refreshUser called');
     try {
       const token = api.getToken();
       if (token) {
         const response = await api.getCurrentUser();
+        console.log('🔄 Auth: refreshUser response:', response);
         if (response.user) {
           setUser(response.user);
+          console.log('✅ Auth: User refreshed, PIN hash:', response.user.pinHash);
         }
       }
     } catch (error) {
@@ -99,39 +87,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const hashPin = async (pin: string, userId: string): Promise<string> => {
+    const input = userId + pin;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
   const checkPin = async (pin: string): Promise<{ success: boolean; error?: string; blocked?: boolean; attemptsLeft?: number }> => {
-    try {
-      const token = api.getToken();
-      const userId = api.getUserId();
-      
-      if (!token || !userId) {
-        return { success: false, error: 'Не авторизовано' };
-      }
-      
-      const response = await fetch('https://my-finance-app-2026-production.up.railway.app/api/auth/verify-pin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'user-id': userId
-        },
-        body: JSON.stringify({ pin })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        return { success: true };
-      } else {
-        return { 
-          success: false, 
-          error: data.error || 'Невірний PIN', 
-          blocked: data.blocked,
-          attemptsLeft: data.attemptsLeft 
-        };
-      }
-    } catch (error) {
-      return { success: false, error: 'Помилка перевірки PIN' };
+    const storedHash = user?.pinHash;
+    
+    console.log('🔐 Auth: checkPin called');
+    console.log('🔐 Auth: storedHash:', storedHash);
+    
+    if (!storedHash) {
+      return { success: false, error: 'PIN-код не встановлено' };
+    }
+    
+    const userId = user?.id || '';
+    const calculatedHash = await hashPin(pin, userId);
+    
+    console.log('🔐 Auth: User ID:', userId);
+    console.log('🔐 Auth: Entered PIN:', pin);
+    console.log('🔐 Auth: Calculated hash:', calculatedHash);
+    console.log('🔐 Auth: Stored hash:', storedHash);
+    console.log('🔐 Auth: Match:', calculatedHash === storedHash);
+    
+    if (calculatedHash === storedHash) {
+      return { success: true };
+    } else {
+      return { success: false, error: 'Невірний PIN-код' };
     }
   };
 
@@ -149,11 +136,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         api.setUserId(response.user.id);
         if (response.user.isEmailVerified === false) setRequiresEmailVerification(true);
         
-        // Зберігаємо сесію на 30 днів
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
-        localStorage.setItem(SESSION_KEY, JSON.stringify({ expiresAt: expiresAt.toISOString() }));
         localStorage.setItem('lastEmail', email);
+        
+        console.log('✅ Auth: Login successful, user:', response.user.email);
+        console.log('✅ Auth: PIN hash from login:', response.user.pinHash);
         
         toast.success('Вхід виконано!');
         return true;
@@ -175,9 +161,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         api.setUserId(response.user.id);
         if (response.requiresVerification) setRequiresEmailVerification(true);
         
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
-        localStorage.setItem(SESSION_KEY, JSON.stringify({ expiresAt: expiresAt.toISOString() }));
         localStorage.setItem('lastEmail', email);
         
         toast.success('Реєстрація успішна!');
@@ -200,9 +183,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         api.setUserId(response.user.id);
         setPendingTwoFactorEmail('');
         
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
-        localStorage.setItem(SESSION_KEY, JSON.stringify({ expiresAt: expiresAt.toISOString() }));
         localStorage.setItem('lastEmail', email);
         
         toast.success('2FA підтверджено!');
@@ -223,7 +203,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setRequiresEmailVerification(false);
     sessionStorage.removeItem('pinVerified');
     localStorage.removeItem('pinUnlocked');
-    localStorage.removeItem(SESSION_KEY);
     toast.success('Ви вийшли');
   };
 

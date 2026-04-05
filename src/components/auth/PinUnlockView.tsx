@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { BiometricAuth } from './BiometricAuth';
 import toast from 'react-hot-toast';
 
 interface PinUnlockViewProps {
   onSuccess: () => void;
 }
 
+// ТОЧНО ТАКИЙ Ж МЕТОД ХЕШУВАННЯ ЯК В iOS
 const hashPin = async (pin: string, userId: string): Promise<string> => {
   const input = userId + pin;
   const encoder = new TextEncoder();
@@ -50,12 +50,13 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
+      // Оновлюємо дані користувача
       await refreshUser();
       
       const storedHash = user?.pinHash;
       
       if (!storedHash) {
-        setError('PIN-код не встановлено');
+        setError('PIN-код не встановлено. Перейдіть в Профіль → Безпека');
         setIsLoading(false);
         return;
       }
@@ -66,8 +67,9 @@ export const PinUnlockView: React.FC<PinUnlockViewProps> = ({ onSuccess }) => {
       console.log('========== PIN VERIFICATION ==========');
       console.log('User ID:', userId);
       console.log('Entered PIN:', pin);
+      console.log('Input string:', userId + pin);
       console.log('Calculated hash:', calculatedHash);
-      console.log('Stored hash:', storedHash);
+      console.log('Stored hash from server:', storedHash);
       console.log('Match:', calculatedHash === storedHash);
       console.log('======================================');
       
