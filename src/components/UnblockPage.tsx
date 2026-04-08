@@ -1,126 +1,160 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 const API_URL = 'https://my-finance-app-2026-production.up.railway.app/api';
+
+type Status = 'processing' | 'success' | 'expired' | 'error';
+
+const card: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '420px',
+  background: '#ffffff',
+  borderRadius: '24px',
+  padding: '40px 32px',
+  boxShadow: '0 8px 40px rgba(0,0,0,0.12)',
+  textAlign: 'center',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+};
+
+const page: React.CSSProperties = {
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '16px',
+  background: 'linear-gradient(135deg, #f5f5f7 0%, #e8e8f0 100%)',
+};
+
+const title: React.CSSProperties = {
+  fontSize: '22px',
+  fontWeight: 700,
+  marginBottom: '8px',
+  color: '#1c1c1e',
+};
+
+const subtitle: React.CSSProperties = {
+  color: '#6c6c70',
+  lineHeight: 1.6,
+  marginBottom: '24px',
+};
 
 export const UnblockPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'expired'>('loading');
-  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<Status>('processing');
+  const [errorMsg, setErrorMsg] = useState('');
+  const started = useRef(false);
 
   useEffect(() => {
+    // Prevent double-invoke in React StrictMode
+    if (started.current) return;
+    started.current = true;
+
     if (!token) {
       setStatus('error');
+      setErrorMsg('Посилання не містить токена.');
       return;
     }
-    checkStatus();
-  }, [token]);
 
-  const checkStatus = async () => {
+    autoUnblock(token);
+  }, []);
+
+  const autoUnblock = async (t: string) => {
     try {
-      const response = await fetch(`${API_URL}/auth/unblock-status?token=${token}`);
-      const data = await response.json();
-      if (data.success) {
-        setEmail(data.email);
-        setStatus('loading');
-      } else {
+      // 1. Verify token is still valid
+      const statusRes = await fetch(`${API_URL}/auth/unblock-status?token=${t}`);
+      const statusData = await statusRes.json();
+
+      if (!statusData.success) {
+        // Token not found — already used or never existed
         setStatus('error');
+        setErrorMsg('Посилання вже використано або недійсне.');
+        return;
       }
-    } catch (error) {
-      setStatus('error');
-    }
-  };
 
-  const handleUnblock = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/auth/unblock`, {
+      // 2. Perform unblock immediately — no button click needed
+      const unblockRes = await fetch(`${API_URL}/auth/unblock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
+        body: JSON.stringify({ token: t }),
       });
-      const data = await response.json();
-      if (data.success) {
-        toast.success('Акаунт розблоковано!');
+      const unblockData = await unblockRes.json();
+
+      if (unblockData.success) {
         setStatus('success');
-        setTimeout(() => navigate('/login'), 2000);
+      } else if (unblockData.error === 'Термін дії посилання вийшов') {
+        setStatus('expired');
       } else {
-        if (data.error === 'Термін дії посилання вийшов') {
-          setStatus('expired');
-        } else {
-          toast.error(data.error || 'Помилка розблокування');
-          setStatus('error');
-        }
+        setStatus('error');
+        setErrorMsg(unblockData.error || 'Невідома помилка розблокування.');
       }
-    } catch (error) {
-      toast.error('Помилка розблокування');
+    } catch {
       setStatus('error');
-    } finally {
-      setIsLoading(false);
+      setErrorMsg("Помилка з'єднання з сервером. Перевірте інтернет та спробуйте ще раз.");
     }
   };
 
-  if (status === 'error') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="w-full max-w-md text-center">
-          <div className="text-6xl mb-4">❌</div>
-          <h1 className="text-2xl font-bold mb-2">Недійсне посилання</h1>
-          <p className="text-muted-foreground mb-6">Посилання для розблокування недійсне або вже використане.</p>
-          <button onClick={() => navigate('/login')} className="px-6 py-2 rounded-xl bg-primary text-white">Перейти до входу</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'expired') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="w-full max-w-md text-center">
-          <div className="text-6xl mb-4">⏰</div>
-          <h1 className="text-2xl font-bold mb-2">Термін дії вийшов</h1>
-          <p className="text-muted-foreground mb-6">Посилання для розблокування втратило чинність. Спробуйте увійти знову.</p>
-          <button onClick={() => navigate('/login')} className="px-6 py-2 rounded-xl bg-primary text-white">Перейти до входу</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'success') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="w-full max-w-md text-center">
-          <div className="text-6xl mb-4">✅</div>
-          <h1 className="text-2xl font-bold mb-2">Акаунт розблоковано!</h1>
-          <p className="text-muted-foreground mb-6">Ви будете перенаправлені на сторінку входу...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="w-full max-w-md text-center">
-        <div className="text-6xl mb-4">🔓</div>
-        <h1 className="text-2xl font-bold mb-2">Розблокування акаунту</h1>
-        <p className="text-muted-foreground mb-6">
-          Ваш акаунт було заблоковано через 3 невдалі спроби введення PIN-коду.
-          {email && <span className="block mt-2 text-sm">Email: <strong>{email}</strong></span>}
-        </p>
-        <button
-          onClick={handleUnblock}
-          disabled={isLoading}
-          className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-teal-500 text-white font-semibold hover:opacity-90 disabled:opacity-50"
-        >
-          {isLoading ? 'Розблокування...' : 'Розблокувати акаунт'}
-        </button>
-        <button onClick={() => navigate('/login')} className="mt-4 text-sm text-muted-foreground hover:text-foreground">
-          ← Повернутися до входу
-        </button>
+    <div style={page}>
+      <div style={card}>
+        {status === 'processing' && (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>🔒</div>
+            <h1 style={title}>Розблокування акаунту…</h1>
+            <p style={subtitle}>Будь ласка, зачекайте кілька секунд.</p>
+            <div style={{
+              width: 40, height: 40,
+              border: '3px solid #e5e5ea',
+              borderTopColor: '#FF2D55',
+              borderRadius: '50%',
+              margin: '0 auto',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </>
+        )}
+
+        {status === 'success' && (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+            <h1 style={title}>Акаунт розблоковано!</h1>
+            <p style={subtitle}>
+              Поверніться до застосунку FinanceAI —<br />
+              доступ відновиться автоматично.
+            </p>
+            <div style={{
+              background: 'linear-gradient(135deg, #34C759, #30B855)',
+              borderRadius: '16px',
+              padding: '14px 24px',
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: 15,
+            }}>
+              Можна закрити цю сторінку
+            </div>
+          </>
+        )}
+
+        {status === 'expired' && (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>⏰</div>
+            <h1 style={title}>Термін дії вийшов</h1>
+            <p style={{ ...subtitle, marginBottom: 0 }}>
+              Посилання більше не дійсне. Зачекайте 30 хвилин —
+              блокування знімається автоматично.
+            </p>
+          </>
+        )}
+
+        {status === 'error' && (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>❌</div>
+            <h1 style={title}>Помилка</h1>
+            <p style={{ ...subtitle, marginBottom: 0 }}>
+              {errorMsg || 'Посилання недійсне або вже використане.'}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
